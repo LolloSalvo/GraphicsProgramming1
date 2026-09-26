@@ -30,14 +30,21 @@ void SoftwarePathTracer::Render()
 	{
 		for (uint32_t px = 0; px < surface_info.width; ++px)
 		{
-			// Calculate a gradient value based on pixel screen coordinates.
-			float gradient = px / static_cast<float>(surface_info.width);
-			gradient += py / static_cast<float>(surface_info.height);
-			gradient /= 2.0f;
+			float x{ (2 * ((px + 0.5f) / surface_info.width) - 1) };
+			float y{ 1 - 2 * ((py + 0.5f) / surface_info.height) };
 
-			// Convert gradient value to color.
-			ColorRgba final_color = { gradient, gradient, gradient };
-			final_color.MaxToOne();
+			Vector3 ray_direction{ x,y,1.f };
+			ray_direction.Normalize();
+			ColorRgba final_color{ ray_direction.x, ray_direction.y, ray_direction.z };
+
+			//// Calculate a gradient value based on pixel screen coordinates.
+			//float gradient = px / static_cast<float>(surface_info.width);
+			//gradient += py / static_cast<float>(surface_info.height);
+			//gradient /= 2.0f;
+
+			//// Convert gradient value to color.
+			//ColorRgba final_color = { gradient, gradient, gradient };
+			//final_color.MaxToOne();
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * surface_info.width)] = SDL_MapRGB(
