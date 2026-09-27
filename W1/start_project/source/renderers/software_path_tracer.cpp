@@ -40,7 +40,8 @@ void SoftwarePathTracer::Render()
 			ColorRgba final_color{ 0.f, 0.f, 0.f};
 
 			RayHitRecord closest_hit_record{};
-			const Sphere testSphere{ {0.f, 0.f, 100.f}, 50.f };
+
+			/*const Sphere testSphere{ {0.f, 0.f, 100.f}, 50.f };
 			if (bool didHit{ HitTestSphere(testSphere, viewRay, closest_hit_record) })
 			{
 				ShadingInput shading_input{};
@@ -50,6 +51,37 @@ void SoftwarePathTracer::Render()
 				DebugParams debug_params{ context_->debug_params };
 				VisualizationMode vis_mode{ debug_params.visualization_mode };
 				
+				if (debug_params.visualization_mode == VisualizationMode::kDepth)
+				{
+					const float max_depth{ 100.f };
+					const float scaled_t{ 1.f -
+						std::clamp(closest_hit_record.t / max_depth, 0.f, 1.f) };
+					final_color = { scaled_t, scaled_t, scaled_t };
+				}
+				else if (vis_mode == VisualizationMode::kNormals)
+				{
+					const Vector3& n = shading_input.world_normal;
+					final_color = {
+						(n.x + 1.f) * 0.5f,
+						(n.y + 1.f) * 0.5f,
+						(n.z + 1.f) * 0.5f };
+				}
+				else if (vis_mode == VisualizationMode::kNone)
+				{
+					final_color = (ColorRgba{ 1.f, 0.f, 0.f });
+				}
+			}*/
+
+			Plane testPlane{ Vector3{0.f, -50.f, 0.f}, Vector3{0.f, 1.f, 0.f} };
+			if (bool didHit{HitTestPlane(testPlane, viewRay, closest_hit_record)})
+			{
+				ShadingInput shading_input{};
+				shading_input.world_position = viewRay.origin + closest_hit_record.t * viewRay.direction;
+				shading_input.world_normal = (shading_input.world_position - testPlane.origin).Normalized();
+
+				DebugParams debug_params{ context_->debug_params };
+				VisualizationMode vis_mode{ debug_params.visualization_mode };
+
 				if (debug_params.visualization_mode == VisualizationMode::kDepth)
 				{
 					const float max_depth{ 100.f };

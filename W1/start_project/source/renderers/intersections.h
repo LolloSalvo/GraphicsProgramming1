@@ -34,7 +34,7 @@ namespace gfx
 		
 		float t0{ t_ca - t_hc }; //This is finally the distance between the ray origin and the first hit of the ray on the sphere surface
 
-		if (t0 > ray.min && t0 < ray.max && ignore_hit_record == false)
+		if (t0 > ray.min && t0 < ray.max && ignore_hit_record == false) 
 		{
 			hit_record.t = t0;
 			hit_record.ray = ray;
@@ -52,8 +52,49 @@ namespace gfx
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
 		//TODO
-		assert(false && "Not Implemented");
-		(void)plane; (void)ray; (void)hit_record; (void)ignore_hit_record;
+		Vector3 directionVerctor{ ray.direction };
+
+		float  angularProportion{ Vector3::Dot(ray.direction, plane.normal) };
+		if (angularProportion < 0.f)
+		{
+			float t{ (Vector3::Dot((plane.origin - ray.origin), plane.normal) / angularProportion) };
+
+			Vector3 hitPoint{ ray.origin + ray.direction * t };
+			Vector3 b{ Vector3::Cross(plane.normal, plane.tangent) };
+
+			if (plane.half_extent.has_value())
+			{
+				float t1{ Vector3::Dot((hitPoint - plane.origin), plane.tangent) };
+				float b1{ Vector3::Dot((hitPoint - plane.origin), b) };
+
+				if (abs(t1) <= plane.half_extent.value().Magnitude() && abs(b1) <= plane.half_extent.value().Magnitude())
+				{
+					if (t > ray.min && t < ray.max && ignore_hit_record == false)
+					{
+						hit_record.t = t;
+						hit_record.ray = ray;
+						return true;
+					}
+				}
+
+			}
+			else
+			{
+				if (t > ray.min && t < ray.max && ignore_hit_record == false)
+				{
+					hit_record.t = t;
+					hit_record.ray = ray;
+					return true;
+				}
+
+			}
+
+		}
+
+
+
+		/*assert(false && "Not Implemented");
+		(void)plane; (void)ray; (void)hit_record; (void)ignore_hit_record;*/
 		return false;
 	}
 
