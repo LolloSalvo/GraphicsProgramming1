@@ -21,8 +21,29 @@ namespace gfx
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
 		//TODO
-		assert(false && "Not Implemented");
-		(void)sphere; (void)ray; (void)hit_record; (void)ignore_hit_record;
+		
+		Vector3 directionVector{ ray.direction };
+		Vector3 l{ sphere.origin - ray.origin }; // Distance between the Ray origin and the sphere origin
+
+		float t_ca{ Vector3::Dot(l,directionVector) }; // Projection of the vector L on the direction Vector of the Ray
+		float  od{ sqrtf(Vector3::Dot(l,l) - t_ca * t_ca) }; // Height of the right triangle formed by L and the proj of it on the direction of the Ray
+
+		if (od > sphere.radius) return false;
+
+		float t_hc{ sqrtf((sphere.radius * sphere.radius) - (od * od)) }; // Using the now found height od we can use the same angle and the radius to find half of the length of the part of the ray passing through the sphere
+		
+		float t0{ t_ca - t_hc }; //This is finally the distance between the ray origin and the first hit of the ray on the sphere surface
+
+		if (t0 > ray.min && t0 < ray.max && ignore_hit_record == false)
+		{
+			hit_record.t = t0;
+			hit_record.ray = ray;
+			return true;
+		}
+
+
+		/*assert(false && "Not Implemented");
+		(void)sphere; (void)ray; (void)hit_record; (void)ignore_hit_record;*/
 		return false;
 	}
 
