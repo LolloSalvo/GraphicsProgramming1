@@ -60,7 +60,7 @@ namespace gfx
 			objects.push_back({ .primitive_index = floor, .material_index = mat_white });
 
 			// Bounded back plane
-			const uint32_t back { primitives_factory.Create<Plane>(
+			const uint32_t back{ primitives_factory.Create<Plane>(
 				Vector3(0.f, 2.f, 3.f), Vector3(0.f, 0.f, -1.f), true, Vector2(5.f, 2.f)) };
 			objects.push_back({ .primitive_index = back, .material_index = mat_white });
 		}

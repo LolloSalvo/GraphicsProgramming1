@@ -26,21 +26,38 @@ namespace gfx
 		Vector3 l{ sphere.origin - ray.origin }; // Distance between the Ray origin and the sphere origin
 
 		float t_ca{ Vector3::Dot(l,directionVector) }; // Projection of the vector L on the direction Vector of the Ray
-		float  od{ sqrtf(Vector3::Dot(l,l) - t_ca * t_ca) }; // Height of the right triangle formed by L and the proj of it on the direction of the Ray
+		float  od{ Vector3::Dot(l,l) - t_ca * t_ca }; // Height of the right triangle formed by L and the proj of it on the direction of the Ray
+		if (od < 0.0f) od = 0.0f;
 
-		if (od > sphere.radius) return false;
+
+		if (od > sphere.radius * sphere.radius) return false;
 
 		float t_hc{ sqrtf((sphere.radius * sphere.radius) - (od * od)) }; // Using the now found height od we can use the same angle and the radius to find half of the length of the part of the ray passing through the sphere
 		
 		float t0{ t_ca - t_hc }; //This is finally the distance between the ray origin and the first hit of the ray on the sphere surface
+		float t1{ t_ca + t_hc };
 
-		if (t0 > ray.min && t0 < ray.max && ignore_hit_record == false) 
+		float valid_t{};
+
+		if (t0 > ray.min && t0 < ray.max)
 		{
-			hit_record.t = t0;
+			valid_t = t0;
+		}
+		else if (t1 > ray.min && t1 < ray.max)
+		{
+			valid_t = t1;
+		}
+		else
+		{
+			return false;
+		}
+
+		if (ignore_hit_record == false) 
+		{
+			hit_record.t = valid_t;
 			hit_record.ray = ray;
 			return true;
 		}
-
 
 		/*assert(false && "Not Implemented");
 		(void)sphere; (void)ray; (void)hit_record; (void)ignore_hit_record;*/
@@ -67,7 +84,7 @@ namespace gfx
 				float t1{ Vector3::Dot((hitPoint - plane.origin), plane.tangent) };
 				float b1{ Vector3::Dot((hitPoint - plane.origin), b) };
 
-				if (abs(t1) <= plane.half_extent.value().Magnitude() && abs(b1) <= plane.half_extent.value().Magnitude())
+				if (abs(t1) <= plane.half_extent.value().x && abs(b1) <= plane.half_extent.value().y)
 				{
 					if (t > ray.min && t < ray.max && ignore_hit_record == false)
 					{
@@ -90,8 +107,6 @@ namespace gfx
 			}
 
 		}
-
-
 
 		/*assert(false && "Not Implemented");
 		(void)plane; (void)ray; (void)hit_record; (void)ignore_hit_record;*/

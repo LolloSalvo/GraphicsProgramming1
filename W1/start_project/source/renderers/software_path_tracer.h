@@ -28,6 +28,9 @@ namespace gfx
 
 		//--- Public Functions ---
 		void Render() override;
+
+		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const;
+		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
 	};
 }
 #endif //SOFTWARE_PATH_TRACER_HEADER
