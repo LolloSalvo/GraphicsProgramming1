@@ -26,11 +26,11 @@ namespace gfx
 		Vector3 l{ sphere.origin - ray.origin }; // Distance between the Ray origin and the sphere origin
 
 		float t_ca{ Vector3::Dot(l,directionVector) }; // Projection of the vector L on the direction Vector of the Ray
-		float  od{ Vector3::Dot(l,l) - t_ca * t_ca }; // Height of the right triangle formed by L and the proj of it on the direction of the Ray
+		float  od{ sqrtf(Vector3::Dot(l,l) - t_ca * t_ca) }; // Height of the right triangle formed by L and the proj of it on the direction of the Ray
 		if (od < 0.0f) od = 0.0f;
 
 
-		if (od > sphere.radius * sphere.radius) return false;
+		if (od > sphere.radius) return false;
 
 		float t_hc{ sqrtf((sphere.radius * sphere.radius) - (od * od)) }; // Using the now found height od we can use the same angle and the radius to find half of the length of the part of the ray passing through the sphere
 		
