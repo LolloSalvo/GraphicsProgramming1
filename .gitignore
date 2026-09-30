@@ -399,3 +399,26 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# ==============================================================================
+# AGGIUNTE SPECIFICHE PER IL PROGETTO DAE (C++, CMake, Conan, Python Bootstrap)
+# ==========================================
+
+# Python Virtual Environments (fondamentale per bootstrap.py)
+.venv/
+venv/
+env/
+
+# CMake & Build Folders (dove vengono compilati i binari)
+build/
+out/
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+
+# Conan Package Manager (cache locale e file generati)
+conan.lock
+conanbuildinfo.*
+conanruninfo.*
+graph_info.json

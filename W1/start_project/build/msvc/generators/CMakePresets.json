@@ -30,7 +30,7 @@
                 "strategy": "external"
             },
             "toolchainFile": "generators\\conan_toolchain.cmake",
-            "binaryDir": "C:\\DAE\\GraphicsProgramming1\\W1\\start_project\\build\\msvc"
+            "binaryDir": "C:\\Users\\lsalv\\Desktop\\DAE\\GraphicsProgramming1\\W1\\start_project\\build\\msvc"
         }
     ],
     "buildPresets": [

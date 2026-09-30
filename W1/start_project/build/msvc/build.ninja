@@ -13,7 +13,7 @@ build GraphicsProgramming.exe: phony bin\Debug\GraphicsProgramming.exe
 
 
 #############################################
-# Folder: C:/DAE/GraphicsProgramming1/W1/start_project/build/msvc
+# Folder: C:/Users/lsalv/Desktop/DAE/GraphicsProgramming1/W1/start_project/build/msvc
 
 build all: phony all$:Debug
 
