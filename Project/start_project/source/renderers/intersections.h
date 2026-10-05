@@ -12,6 +12,8 @@
 //--- Framework Includes ---
 #include <primitives.h>
 #include <matrix.h>
+#include <assimp/defs.h>
+#include <assimp/MathFunctions.h>
 
 namespace gfx
 {
@@ -104,8 +106,6 @@ namespace gfx
 
 		}
 
-		/*assert(false && "Not Implemented");
-		(void)plane; (void)ray; (void)hit_record; (void)ignore_hit_record;*/
 		return false;
 	}
 
@@ -113,10 +113,77 @@ namespace gfx
 	static bool HitTestTriangle(const Triangle& triangle, const Ray& ray, 
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)triangle; (void)ray; (void)hit_record; (void)ignore_hit_record;
+		float n_dot_r{ Vector3::Dot(triangle.normal, ray.direction) };
+		if (abs(n_dot_r) < ai_epsilon)
+		{
+			return false;
+		}
+
+		bool is_face_visible{ false };
+
+		switch (triangle.cull_mode)
+		{
+		case CullMode::kBackFaceCulling:
+			{
+				if (n_dot_r < 0.f)
+				{
+					is_face_visible = true;
+				}
+				break;
+			}
+		case CullMode::kFrontFaceCulling:
+			{
+				if (n_dot_r > 0.f)
+				{
+					is_face_visible = true;
+				}
+				break;
+			}
+		case CullMode::kNoCulling:
+			{
+				is_face_visible = true;
+				break;
+			}
+		default:
+			{
+				break;
+			}
+		}
+
+		Vector3 edge1{ triangle.v1 - triangle.v0 };
+		Vector3 edge2{ triangle.v2 - triangle.v0 };
+
+		Vector3 h{ Vector3::Cross(ray.direction, edge2) }; // h is perpendicular to edge2 and the ray direction
+		float det{ Vector3::Dot(edge1, h) };
+		float inverse_det{ 1.f / det };
+
+		Vector3 s{ ray.origin - triangle.v0 };
+		float u{ Vector3::Dot(s, h) * inverse_det };
+
+		if (u < 0.f || u > 1.f)
+		{
+			return false;
+		}
+
+		Vector3 q{ Vector3::Cross(s, edge1) };
+		float v{ Vector3::Dot(ray.direction, q) * inverse_det };
+
+		if (v < 0.f || u + v > 1.f)
+		{
+			return false;
+		}
+
+		float t{ Vector3::Dot(edge2, q) * inverse_det };
+		if (t > ray.min && t < ray.max && ignore_hit_record == false && is_face_visible)
+		{
+			hit_record.t = t;
+			hit_record.ray = ray;
+			hit_record.barycentric_coordinates = Vector2{ u, v };
+			return true;
+		}
+		
 		return false;
+
 	}
 
 	[[maybe_unused]]

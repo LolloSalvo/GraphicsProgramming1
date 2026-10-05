@@ -79,7 +79,8 @@ namespace gfx
 		const Matrix& GetView()
 		{
 			//TODO: create view matrix
-			(void)fov_angle_;
+			view_ = Matrix::CreateLookAtLH(position_, forward_, up_);
+			//(void)fovangle;
 			return view_;
 		}
 		const Matrix& GetProjection(const float fov_y, const float aspect_ratio)
