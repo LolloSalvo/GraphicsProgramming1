@@ -9,17 +9,68 @@ using namespace gfx;
 //--- Primitives AABB Updates ---
 void Sphere::UpdateAABB()
 {
-	//TODO
+	if (!this->bounding_box.has_value())
+	{
+		this->bounding_box.emplace();
+	}
+
+	this->bounding_box->min = Vector3{ this->origin.x - this->radius, this->origin.y - this->radius, this->origin.z - this->radius };
+	this->bounding_box->max = Vector3{ this->origin.x + this->radius, this->origin.y + this->radius, this->origin.z + this->radius };
 }
 
 void Triangle::UpdateAABB()
 {
-	//TODO
+	if (!this->bounding_box.has_value())
+	{
+		this->bounding_box.emplace();
+	}
+
+	const float min_x{ std::min({this->v0.x, this->v1.x, this->v2.x}) };
+	const float min_y{ std::min({this->v0.y, this->v1.y, this->v2.y}) };
+	const float min_z{ std::min({this->v0.z, this->v1.z, this->v2.z}) };
+	
+	const float max_x{ std::max({this->v0.x, this->v1.x, this->v2.x}) };
+	const float max_y{ std::max({this->v0.y, this->v1.y, this->v2.y}) };
+	const float max_z{ std::max({this->v0.z, this->v1.z, this->v2.z}) };
+
+	this->bounding_box->min = Vector3{ min_x, min_y, min_z };
+	this->bounding_box->max = Vector3{ max_x, max_y, max_z };
+
 }
 
 void TriangleMesh::UpdateAABB()
 {
-	//TODO
+	if (!this->bounding_box.has_value())
+	{
+		this->bounding_box.emplace();
+	}
+
+	Vector3 min_extents{
+		std::numeric_limits<float>::max(),
+		std::numeric_limits<float>::max(),
+		std::numeric_limits<float>::max()
+	};
+
+	Vector3 max_extents{
+		std::numeric_limits<float>::lowest(),
+		std::numeric_limits<float>::lowest(),
+		std::numeric_limits<float>::lowest()
+	};
+
+	for (const Vertex& vertex : this->vertices)
+	{
+		min_extents.x = std::min({min_extents.x, vertex.position.x});
+		max_extents.x = std::max({max_extents.x, vertex.position.x});
+
+		min_extents.y = std::min({min_extents.y, vertex.position.y});
+		max_extents.y = std::max({max_extents.y, vertex.position.y});
+	
+		min_extents.z = std::min({min_extents.z, vertex.position.z});
+		max_extents.z = std::max({max_extents.z, vertex.position.z});
+	}
+
+	this->bounding_box->min = min_extents;
+	this->bounding_box->max = max_extents;
 }
 
 //--- AABB ---

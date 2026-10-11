@@ -33,9 +33,13 @@ void SoftwarePathTracer::Render()
 	Matrix view_matrix{ context_->scene_manager->GetActiveScene()->camera.GetView() };
 	Matrix world_matrix{ view_matrix.GetInverse() };
 
-	for (uint32_t py = 0; py < surface_info.height; ++py)
+	int surface_height{ static_cast<int>(surface_info.height) };
+	int surface_width{ static_cast<int>(surface_info.width) };
+
+#pragma omp parallel for schedule(dynamic, 16)
+	for (int py{}; py < surface_height; ++py)
 	{
-		for (uint32_t px = 0; px < surface_info.width; ++px)
+		for (int px{}; px < surface_width; ++px)
 		{
 
 			float x{ (2 * ((px + 0.5f) / surface_info.width) - 1) * aspectRatio * fov } ;
@@ -138,6 +142,14 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 		RayHitRecord temp_hit_record{};
 		bool hit_primitive{ false };
+
+		if (primitive->bounding_box.has_value() && primitive->type != PrimitiveType::kPlane)
+		{
+			if (!HitTestAABB(primitive->bounding_box.value(), ray_model_space))
+			{
+				continue;
+			}
+		}
 
 		switch (primitive->type)
 		{
