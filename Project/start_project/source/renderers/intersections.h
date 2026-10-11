@@ -150,6 +150,11 @@ namespace gfx
 			}
 		}
 
+		if (!is_face_visible)
+		{
+			return false;
+		}
+
 		Vector3 edge1{ triangle.v1 - triangle.v0 };
 		Vector3 edge2{ triangle.v2 - triangle.v0 };
 

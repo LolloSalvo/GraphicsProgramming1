@@ -55,11 +55,9 @@ void SoftwarePathTracer::Render()
 			ColorRgba final_color{ 0.f, 0.f, 0.f};
 
 			RayHitRecord closest_hit_record{};
-			ShadingInput shading_input{};
 
 			if (SceneClosestHitTest(world_ray, closest_hit_record, false))
 			{
-				shading_input = ConstructShadingInput(closest_hit_record);
 
 				DebugParams debug_params{ context_->debug_params };
 				VisualizationMode vis_mode{ debug_params.visualization_mode };
@@ -73,7 +71,7 @@ void SoftwarePathTracer::Render()
 				}
 				else if (vis_mode == VisualizationMode::kNormals)
 				{
-					const Vector3& n = shading_input.world_normal;
+					const Vector3& n = ConstructShadingInput(closest_hit_record).world_normal;
 					final_color = {
 						(n.x + 1.f) * 0.5f,
 						(n.y + 1.f) * 0.5f,
@@ -176,6 +174,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		case PrimitiveType::kTriangleMesh:
 		{
 			const TriangleMesh& mesh = static_cast<const TriangleMesh&>(*primitive);
+			Triangle triangle{};
 
 			for (int i{}; i < mesh.indices.size(); i += 3)
 			{
@@ -183,7 +182,6 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 				uint32_t idx1 = mesh.indices[i + 1];
 				uint32_t idx2 = mesh.indices[i + 2];
 
-				Triangle triangle{};
 				triangle.v0 = mesh.vertices[idx0].position;
 				triangle.v1 = mesh.vertices[idx1].position;
 				triangle.v2 = mesh.vertices[idx2].position;
@@ -200,11 +198,21 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 					if (!ignore_record)
 					{
 						temp_hit_record.vertex_indices = std::array<uint32_t, 3>{ idx0, idx1, idx2 };
+						ray_model_space.max = temp_hit_record.t;
 					}
 
 					if (ignore_record) break;
 				}
 			}
+
+			//hit_primitive = true;
+
+			//temp_hit_record.t = 5.0f;
+			//temp_hit_record.ray = ray_model_space;
+
+			//temp_hit_record.vertex_indices = std::array<uint32_t, 3>{ 0, 0, 0 };
+			//temp_hit_record.barycentric_coordinates = Vector2{ 0.f, 0.f };
+
 			break;
 		}
 
@@ -221,8 +229,19 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 
 			closest_hit.ray = ray_model_space;
 
+			//if (primitive->type == PrimitiveType::kTriangleMesh)
+			//{
+			//	closest_hit.object_index = 8;
+			//}
+			//else
+			//{
+			//	closest_hit.object_index = index;
+			//}
+
+
 			hit_something = true;
 		}
+
 	}
 
 	return hit_something;
