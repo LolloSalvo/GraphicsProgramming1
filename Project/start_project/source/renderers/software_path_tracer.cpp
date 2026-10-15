@@ -36,6 +36,9 @@ void SoftwarePathTracer::Render()
 	int surface_height{ static_cast<int>(surface_info.height) };
 	int surface_width{ static_cast<int>(surface_info.width) };
 
+	DebugParams debug_params{ context_->debug_params };
+	VisualizationMode vis_mode{ debug_params.visualization_mode };
+
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < surface_height; ++py)
 	{
@@ -59,8 +62,7 @@ void SoftwarePathTracer::Render()
 			if (SceneClosestHitTest(world_ray, closest_hit_record, false))
 			{
 
-				DebugParams debug_params{ context_->debug_params };
-				VisualizationMode vis_mode{ debug_params.visualization_mode };
+				
 				
 				if (debug_params.visualization_mode == VisualizationMode::kDepth)
 				{
@@ -89,15 +91,6 @@ void SoftwarePathTracer::Render()
 
 			}
 
-
-			//// Calculate a gradient value based on pixel screen coordinates.
-			//float gradient = px / static_cast<float>(surface_info.width);
-			//gradient += py / static_cast<float>(surface_info.height);
-			//gradient /= 2.0f;
-
-			//// Convert gradient value to color.
-			//ColorRgba final_color = { gradient, gradient, gradient };
-			//final_color.MaxToOne();
 
 			// Write to surface
 			surface_info.pixel_buffer[px + (py * surface_info.width)] = SDL_MapRGB(
@@ -174,44 +167,72 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 		case PrimitiveType::kTriangleMesh:
 		{
 			const TriangleMesh& mesh = static_cast<const TriangleMesh&>(*primitive);
-			Triangle triangle{};
 
-			for (int i{}; i < mesh.indices.size(); i += 3)
+			if (mesh.bvh_nodes.empty())
 			{
-				uint32_t idx0 = mesh.indices[i];
-				uint32_t idx1 = mesh.indices[i + 1];
-				uint32_t idx2 = mesh.indices[i + 2];
-
-				triangle.v0 = mesh.vertices[idx0].position;
-				triangle.v1 = mesh.vertices[idx1].position;
-				triangle.v2 = mesh.vertices[idx2].position;
-				triangle.cull_mode = mesh.cull_mode;
-
-				Vector3 edge1 = triangle.v1 - triangle.v0;
-				Vector3 edge2 = triangle.v2 - triangle.v0;
-				triangle.normal = Vector3::Cross(edge1, edge2).Normalized();
-
-				if (HitTestTriangle(triangle, ray_model_space, temp_hit_record, ignore_record))
-				{
-					hit_primitive = true;
-
-					if (!ignore_record)
-					{
-						temp_hit_record.vertex_indices = std::array<uint32_t, 3>{ idx0, idx1, idx2 };
-						ray_model_space.max = temp_hit_record.t;
-					}
-
-					if (ignore_record) break;
-				}
+				break;
 			}
 
-			//hit_primitive = true;
+			std::array<uint32_t, 64> stack{};
+			uint32_t stack_size = 1;
+			stack[0] = 0;
 
-			//temp_hit_record.t = 5.0f;
-			//temp_hit_record.ray = ray_model_space;
+			while (stack_size > 0)
+			{
+				const uint32_t node_index = stack[--stack_size];
+				const BVHNode& node = mesh.bvh_nodes[node_index];
 
-			//temp_hit_record.vertex_indices = std::array<uint32_t, 3>{ 0, 0, 0 };
-			//temp_hit_record.barycentric_coordinates = Vector2{ 0.f, 0.f };
+				if (!HitTestAABB(node.bounds, ray_model_space))
+				{
+					continue;
+				}
+
+				if (node.IsLeaf())
+				{
+					for (uint32_t j{ node.first_tri}; j < node.first_tri + node.tri_count; ++j)
+					{
+						const uint32_t triangle_index = mesh.bvh_tri_indices[j];
+
+						const uint32_t idx0 = mesh.indices[triangle_index * 3];
+						const uint32_t idx1 = mesh.indices[triangle_index * 3 + 1];
+						const uint32_t idx2 = mesh.indices[triangle_index * 3 + 2];
+
+						Triangle triangle{};
+						triangle.v0 = mesh.vertices[idx0].position;
+						triangle.v1 = mesh.vertices[idx1].position;
+						triangle.v2 = mesh.vertices[idx2].position;
+						triangle.cull_mode = mesh.cull_mode;
+
+						const Vector3 edge1 = triangle.v1 - triangle.v0;
+						const Vector3 edge2 = triangle.v2 - triangle.v0;
+						triangle.normal = Vector3::Cross(edge1, edge2).Normalized();
+
+						if (HitTestTriangle(
+							triangle,
+							ray_model_space,
+							temp_hit_record,
+							ignore_record))
+						{
+							hit_primitive = true;
+
+							if (!ignore_record)
+							{
+								temp_hit_record.vertex_indices =
+									std::array<uint32_t, 3>{ idx0, idx1, idx2 };
+
+								ray_model_space.max = temp_hit_record.t;
+							}
+						}
+					}
+				}
+				else
+				{
+					assert(stack_size + 2 <= stack.size());
+
+					stack[stack_size++] = node.left_child;
+					stack[stack_size++] = node.left_child + 1;
+				}
+			}
 
 			break;
 		}

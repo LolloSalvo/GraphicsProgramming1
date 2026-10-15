@@ -179,7 +179,7 @@ namespace gfx
 		}
 
 		float t{ Vector3::Dot(edge2, q) * inverse_det };
-		if (t > ray.min && t < ray.max && ignore_hit_record == false && is_face_visible)
+		if (t > ray.min && t < ray.max && ignore_hit_record == false)
 		{
 			hit_record.t = t;
 			hit_record.ray = ray;
