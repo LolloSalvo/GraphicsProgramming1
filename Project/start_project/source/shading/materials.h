@@ -105,13 +105,22 @@ namespace gfx
 			if (params.normal_texture.has_value() && input.texture_coordinates.has_value()
 				&& input.world_tangent.has_value() && input.world_bitangent.has_value())
 			{
-				//TODO
-				assert(false && "Not Implemented");
-				(void)textures;
-				return {};
+				const Texture* tex = textures.Get(params.normal_texture.value());
+				if (tex)
+				{
+					const Vector3 tangent_normal = tex->SampleNormal(input.texture_coordinates.value());
+
+					const Vector3 T = input.world_tangent.value();
+					const Vector3 B = input.world_bitangent.value();
+					const Vector3 N = input.world_normal;
+
+					const Matrix tbn{ T, B, N, Vector3{} };
+
+					return tbn.TransformVector(tangent_normal).Normalized();
+				}
 			}
 		}
-		return input.world_normal; // Default fallback.
+		return input.world_normal;
 	}
 
 	//--- Surface Properties Data ---
@@ -219,19 +228,22 @@ namespace gfx
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
 			const Factory<Texture>& textures) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)textures;
-			return {};
+			(void)textures;
+
+			SurfaceProperties surface{};
+
+			surface.albedo = params_.diffuse_color * params_.diffuse_reflectance;
+			surface.shading_normal = input.world_normal;
+			
+			return surface;
 		}
 
 		[[nodiscard]] ColorRgba Shade(const ShadingInput& input,
 			const SurfaceProperties& surface) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)surface;
-			return {};
+			(void)input;
+
+			return Lambert(params_.diffuse_reflectance, surface.albedo);
 		}
 	};
 
@@ -247,19 +259,74 @@ namespace gfx
 		[[nodiscard]] SurfaceProperties GetSurfaceProperties(const ShadingInput& input,
 			const Factory<Texture>& textures) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)textures;
-			return {};
+			SurfaceProperties surface{};
+
+			surface.albedo = params_.albedo_color_factor;
+
+			surface.roughness = params_.roughness_factor;
+			surface.metallic = params_.metallic_factor;
+
+			if (input.texture_coordinates.has_value())
+			{
+				Vector2 uv{ input.texture_coordinates.value() };
+
+				if (params_.albedo_color_texture.has_value())
+				{
+					const Texture* tex = textures.Get(params_.albedo_color_texture.value());
+
+					if (tex)
+					{
+						const ColorRgba sample = tex->Sample(uv);
+						surface.albedo *= (tex->IsSrgb() ? sample.ToLinear() : sample);
+					}
+				}
+
+				if (params_.metallic_roughness_texture.has_value())
+				{
+					const Texture* mr_tex = textures.Get(params_.metallic_roughness_texture.value());
+
+					if (mr_tex)
+					{
+						const ColorRgba sample = mr_tex->Sample(uv);
+					
+						surface.roughness *= sample.g;
+						surface.metallic *= sample.b;
+					}
+				}
+			}
+
+			surface.shading_normal = SampleNormal(params_, input, textures);
+
+			const float ior{ params_.ior };
+			const float f0_dielectric{ ((ior - 1.f) / (ior + 1.f)) * ((ior - 1.f) / (ior + 1.f)) };
+			const ColorRgba f0_color{ f0_dielectric, f0_dielectric, f0_dielectric };
+
+			surface.f0 = ColorRgba::Lerp(f0_color, surface.albedo, surface.metallic);
+
+			return surface;
 		}
 
 		[[nodiscard]] ColorRgba Shade(const ShadingInput& input,
 			const SurfaceProperties& surface) const override
 		{
-			//TODO
-			assert(false && "Not Implemented");
-			(void)input; (void)surface;
-			return {};
+			const Vector3 v{ input.view_direction };
+			const Vector3 l{ input.light_direction };
+			const Vector3 n{ surface.shading_normal };
+			const Vector3 h{ (v + l).Normalized() };
+
+			const ColorRgba F{ FresnelFunction_Schlick(h, v, surface.f0) };
+			const float D{ NormalDistribution_GGX(n, h, surface.roughness) };
+			const float G{ GeometryFunction_Smith(n, v, l, surface.roughness) };
+
+			float denominator{ 4.f * std::max(0.f, Vector3::Dot(n, v)) * std::max(0.f, Vector3::Dot(n, l)) };
+			denominator = std::max(denominator, 0.001f);
+
+			const ColorRgba specular{ (F * D * G) / denominator };
+
+			ColorRgba kd{ ColorRgba{1.f, 1.f, 1.f} - F };
+			kd *= 1.f - surface.metallic;
+
+			return Lambert(kd, surface.albedo) + specular;
 		}
 	};
 }

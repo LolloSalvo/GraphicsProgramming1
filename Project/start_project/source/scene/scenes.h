@@ -112,7 +112,7 @@ namespace gfx
 	{
 		float rotation_angle{ 0.f };
 		uint32_t tri0{ 0 }, tri1{ 0 }, tri2{ 0 };
-		bool rotating_triangles{ false };
+		bool rotating_triangles{ true };
 
 		void Setup() override
 		{
@@ -181,7 +181,7 @@ namespace gfx
 	{
 		float light_time{ 0.f };
 		uint32_t light_index{ 0 };
-		bool rotating_lights{ true };
+		bool rotating_lights{ false };
 
 		void Setup() override
 		{

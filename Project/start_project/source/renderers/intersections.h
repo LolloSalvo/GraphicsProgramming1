@@ -84,10 +84,13 @@ namespace gfx
 
 				if (abs(t1) <= plane.half_extent.value().x && abs(b1) <= plane.half_extent.value().y)
 				{
-					if (t > ray.min && t < ray.max && ignore_hit_record == false)
+					if (t > ray.min && t < ray.max)
 					{
-						hit_record.t = t;
-						hit_record.ray = ray;
+						if (ignore_hit_record == false)
+						{
+							hit_record.t = t;
+							hit_record.ray = ray;
+						}
 						return true;
 					}
 				}
@@ -95,10 +98,13 @@ namespace gfx
 			}
 			else
 			{
-				if (t > ray.min && t < ray.max && ignore_hit_record == false)
+				if (t > ray.min && t < ray.max)
 				{
-					hit_record.t = t;
-					hit_record.ray = ray;
+					if (ignore_hit_record == false)
+					{
+						hit_record.t = t;
+						hit_record.ray = ray;
+					}
 					return true;
 				}
 
@@ -150,6 +156,11 @@ namespace gfx
 			}
 		}
 
+		if (!is_face_visible)
+		{
+			return false;
+		}
+
 		Vector3 edge1{ triangle.v1 - triangle.v0 };
 		Vector3 edge2{ triangle.v2 - triangle.v0 };
 
@@ -174,11 +185,14 @@ namespace gfx
 		}
 
 		float t{ Vector3::Dot(edge2, q) * inverse_det };
-		if (t > ray.min && t < ray.max && ignore_hit_record == false && is_face_visible)
+		if (t > ray.min && t < ray.max)
 		{
-			hit_record.t = t;
-			hit_record.ray = ray;
-			hit_record.barycentric_coordinates = Vector2{ u, v };
+			if (ignore_hit_record == false)
+			{
+				hit_record.t = t;
+				hit_record.ray = ray;
+				hit_record.barycentric_coordinates = Vector2{ u, v };
+			}
 			return true;
 		}
 		
@@ -189,9 +203,28 @@ namespace gfx
 	[[maybe_unused]]
 	static bool HitTestAABB(const AABB& aabb, const Ray& ray)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)aabb; (void)ray;
+		float t0x{ (aabb.min.x - ray.origin.x) / ray.direction.x };
+		float t1x{ (aabb.max.x - ray.origin.x) / ray.direction.x };
+
+		float t_min = std::min({ t0x, t1x });
+		float t_max = std::max({ t0x, t1x });
+
+		float t0y{ (aabb.min.y - ray.origin.y) / ray.direction.y };
+		float t1y{ (aabb.max.y - ray.origin.y) / ray.direction.y };
+
+		t_min = std::max({ t_min, std::min({t0y, t1y}) });
+		t_max = std::min({ t_max, std::max({t0y, t1y}) });
+
+		float t0z{ (aabb.min.z - ray.origin.z) / ray.direction.z };
+		float t1z{ (aabb.max.z - ray.origin.z) / ray.direction.z };
+
+		t_min = std::max({ t_min, std::min({t0z, t1z}) });
+		t_max = std::min({ t_max, std::max({t0z, t1z}) });
+
+		if (t_min <= t_max && t_max > 0.0f && t_min <= ray.max && t_max >= ray.min)
+		{
+			return true;
+		}
 		return false;
 	}
 }

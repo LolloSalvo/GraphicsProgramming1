@@ -53,7 +53,7 @@ namespace gfx
 	{
 		VisualizationMode visualization_mode{ VisualizationMode::kNone };
 		SamplingStrategy sampling_strategy{ SamplingStrategy::kGGX };
-		ToneMapOperator tone_map_operator{ ToneMapOperator::kACESHill };
+		ToneMapOperator tone_map_operator{ ToneMapOperator::kACESHill};
 		FilterMode filter_mode{ FilterMode::kPoint };
 		uint32_t max_samples{ std::numeric_limits<uint32_t>::max() };
 		uint32_t accumulated_samples{ 0 };

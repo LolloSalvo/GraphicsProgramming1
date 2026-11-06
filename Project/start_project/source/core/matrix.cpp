@@ -270,9 +270,12 @@ const Matrix& Matrix::Inverse()
 
 void Matrix::InvalidateCache() const
 {
+	// NOTE: not safe while other threads hold a reference from GetInverse()!
+	std::lock_guard lock(inverse_mutex);
 	cached_inverse.reset();
 	inverse_computed.store(false, std::memory_order_release);
 }
+
 
 const Matrix& Matrix::Transpose()
 {
@@ -295,16 +298,23 @@ const Matrix& Matrix::Transpose()
 
 const Matrix& Matrix::GetInverse() const
 {
+	// Double-checked locking: fast lock-free path once computed, only one thread computes.
 	if (!inverse_computed.load(std::memory_order_acquire))
 	{
-		cached_inverse = std::make_unique<Matrix>(*this);
-		const float det{ cached_inverse->Determinant() };
-		// If matrix is not invertible, use identity instead!
-		if (std::abs(det) < std::numeric_limits<float>::epsilon())
-			*cached_inverse = CreateIdentity();
-		else
-			cached_inverse->Inverse();
-		inverse_computed.store(true, std::memory_order_release);
+		std::lock_guard lock(inverse_mutex);
+		if (!inverse_computed.load(std::memory_order_relaxed))
+		{
+			// Build fully in a local before publishing, so no thread sees a half-computed inverse.
+			auto inverse = std::make_unique<Matrix>(*this);
+			const float det{ inverse->Determinant() };
+			// If matrix is not invertible, use identity instead!
+			if (std::abs(det) < std::numeric_limits<float>::epsilon())
+				*inverse = CreateIdentity();
+			else
+				inverse->Inverse();
+			cached_inverse = std::move(inverse);
+			inverse_computed.store(true, std::memory_order_release);
+		}
 	}
 	return *cached_inverse;
 }
@@ -338,9 +348,24 @@ Matrix Matrix::Inverse(const Matrix& m)
 
 Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, const Vector3& up)
 {
-	const Vector3& world_up{ 0.f, 1.f, 0.f };
-	const Vector3& right{ Vector3::Cross(world_up, forward).Normalized() };
-	return Matrix{ right, up, forward, origin };
+	Vector3 z_axis = forward.Normalized();
+	Vector3 x_axis = Vector3::Cross(up, z_axis).Normalized();
+	Vector3 y_axis = Vector3::Cross(z_axis, x_axis).Normalized();
+
+	// Nella View Matrix la rotazione è l'inversa (trasposta)
+	Vector4 row0{ x_axis.x, y_axis.x, z_axis.x, 0.f };
+	Vector4 row1{ x_axis.y, y_axis.y, z_axis.y, 0.f };
+	Vector4 row2{ x_axis.z, y_axis.z, z_axis.z, 0.f };
+
+	// La traslazione è il Dot Product negativo
+	Vector4 row3{
+		-Vector3::Dot(x_axis, origin),
+		-Vector3::Dot(y_axis, origin),
+		-Vector3::Dot(z_axis, origin),
+		1.f
+	};
+
+	return Matrix{ row0, row1, row2, row3 };
 }
 
 Matrix Matrix::CreatePerspectiveFovLH(const float fov_y, const float aspect, const float zn, const float zf)
