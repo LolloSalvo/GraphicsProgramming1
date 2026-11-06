@@ -31,6 +31,11 @@ namespace gfx
 
 		bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const;
 		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
+
+		//--- Private Function
+	private:
+
+		ColorRgba CalculateRadiance(Light* light, const Vector3& world_pos);
 	};
 }
 #endif //SOFTWARE_PATH_TRACER_HEADER

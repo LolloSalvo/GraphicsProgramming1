@@ -84,10 +84,13 @@ namespace gfx
 
 				if (abs(t1) <= plane.half_extent.value().x && abs(b1) <= plane.half_extent.value().y)
 				{
-					if (t > ray.min && t < ray.max && ignore_hit_record == false)
+					if (t > ray.min && t < ray.max)
 					{
-						hit_record.t = t;
-						hit_record.ray = ray;
+						if (ignore_hit_record == false)
+						{
+							hit_record.t = t;
+							hit_record.ray = ray;
+						}
 						return true;
 					}
 				}
@@ -95,10 +98,13 @@ namespace gfx
 			}
 			else
 			{
-				if (t > ray.min && t < ray.max && ignore_hit_record == false)
+				if (t > ray.min && t < ray.max)
 				{
-					hit_record.t = t;
-					hit_record.ray = ray;
+					if (ignore_hit_record == false)
+					{
+						hit_record.t = t;
+						hit_record.ray = ray;
+					}
 					return true;
 				}
 
@@ -179,11 +185,14 @@ namespace gfx
 		}
 
 		float t{ Vector3::Dot(edge2, q) * inverse_det };
-		if (t > ray.min && t < ray.max && ignore_hit_record == false)
+		if (t > ray.min && t < ray.max)
 		{
-			hit_record.t = t;
-			hit_record.ray = ray;
-			hit_record.barycentric_coordinates = Vector2{ u, v };
+			if (ignore_hit_record == false)
+			{
+				hit_record.t = t;
+				hit_record.ray = ray;
+				hit_record.barycentric_coordinates = Vector2{ u, v };
+			}
 			return true;
 		}
 		

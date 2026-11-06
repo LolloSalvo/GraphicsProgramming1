@@ -36,7 +36,9 @@ namespace gfx
 	public:
 		//--- Constructors & Destructor ---
 		Camera(const Vector3& position = Vector3::Zero(), const float fov_angle = 60.f) :
-			position_(position, 1.f), fov_angle_(fov_angle) {}
+			position_(position, 1.f), fov_angle_(fov_angle) {
+			UpdateView();
+		}
 		~Camera() = default;
 		Camera(const Camera&) = default;
 		Camera& operator=(const Camera&) = default;
@@ -45,17 +47,24 @@ namespace gfx
 
 		//--- Functions ---
 		void MoveForward(const float delta)
-		{ position_ += forward_ * delta; dirty_ = true; }
+		{
+			position_ += forward_ * delta; UpdateView(); dirty_ = true;
+		}
 		void MoveRight(const float delta)
-		{ position_ += right_ * delta; dirty_ = true; }
+		{
+			position_ += right_ * delta; UpdateView(); dirty_ = true;
+		}
 		void MoveUp(const float delta)
-		{ position_ += Vector4::UnitY() * delta; dirty_ = true; }
+		{
+			position_ += Vector4::UnitY() * delta; UpdateView(); dirty_ = true;
+		}
 
 		void Pitch(const float angle)
 		{
 			const Matrix rotation = Matrix::CreateRotationAxis(right_, angle);
 			forward_ = rotation.TransformVector(forward_);
 			up_ = rotation.TransformVector(up_);
+			UpdateView();
 			dirty_ = true;
 		}
 		void Yaw(const float angle)
@@ -63,10 +72,11 @@ namespace gfx
 			const Matrix rotation = Matrix::CreateRotationY(angle);
 			forward_ = rotation.TransformVector(forward_);
 			right_ = rotation.TransformVector(right_);
+			UpdateView();
 			dirty_ = true;
 		}
 
-		void SetPosition(const Vector3& position) { position_ = Vector4(position, 1.f); dirty_ = true; }
+		void SetPosition(const Vector3& position) { position_ = Vector4(position, 1.f); UpdateView(); dirty_ = true; }
 		void SetFovAngle(const float fov_angle) { fov_angle_ = fov_angle; dirty_ = true; }
 
 		bool IsDirty() const { return dirty_; }
@@ -76,18 +86,36 @@ namespace gfx
 		const Vector4& GetForward() const { return forward_; }
 		float GetFovAngle() const { return fov_angle_; }
 
-		const Matrix& GetView()
-		{
-			view_ = Matrix::CreateLookAtLH(position_, forward_, up_);
-		
-			return view_;
-		}
+		// Pure read: safe to call from multiple threads (view_ is only rebuilt by the mutators).
+		const Matrix& GetView() const { return view_; }
 		const Matrix& GetProjection(const float fov_y, const float aspect_ratio)
 		{
 			//TODO: create projection matrix
 			(void)fov_y; (void)aspect_ratio;
 			(void)near_plane_; (void)far_plane_;
 			return projection_;
+		}
+
+	private:
+		void UpdateView()
+		{
+			// 1. Estrai i Vector3 dai Vector4 per eseguire la matematica
+			Vector3 f3{ forward_.x, forward_.y, forward_.z };
+			f3 = f3.Normalized();
+
+			// 2. Ri-ortogonalizza la base (ONB)
+			Vector3 world_up{ 0.f, 1.f, 0.f };
+			Vector3 r3 = Vector3::Cross(world_up, f3).Normalized();
+			Vector3 u3 = Vector3::Cross(f3, r3).Normalized();
+
+			// 3. Aggiorna i Vector4 della classe (w = 0.f per i vettori di direzione)
+			forward_ = Vector4{ f3.x, f3.y, f3.z, 0.f };
+			right_ = Vector4{ r3.x, r3.y, r3.z, 0.f };
+			up_ = Vector4{ u3.x, u3.y, u3.z, 0.f };
+
+			// 4. Calcola la View Matrix con CreateLookAtLH
+			Vector3 p3{ position_.x, position_.y, position_.z };
+			view_ = Matrix::CreateLookAtLH(p3, f3, u3);
 		}
 	};
 }

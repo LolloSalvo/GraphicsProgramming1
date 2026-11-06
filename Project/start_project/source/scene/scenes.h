@@ -181,7 +181,7 @@ namespace gfx
 	{
 		float light_time{ 0.f };
 		uint32_t light_index{ 0 };
-		bool rotating_lights{ true };
+		bool rotating_lights{ false };
 
 		void Setup() override
 		{

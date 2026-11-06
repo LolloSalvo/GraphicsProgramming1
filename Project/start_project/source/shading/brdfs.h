@@ -25,19 +25,13 @@ namespace gfx
 	[[maybe_unused]]
 	static ColorRgba Lambert(const float kd, const ColorRgba& cd)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)kd; (void)cd;
-		return {};
+		return cd * kd / static_cast<float>(std::numbers::pi);
 	}
 
 	[[maybe_unused]]
 	static ColorRgba Lambert(const ColorRgba& kd, const ColorRgba& cd)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)kd; (void)cd;
-		return {};
+		return cd * kd / static_cast<float>(std::numbers::pi);
 	}
 
 	/**
@@ -50,10 +44,7 @@ namespace gfx
 	[[maybe_unused]]
 	static ColorRgba FresnelFunction_Schlick(const Vector3& h, const Vector3& v, const ColorRgba& f0)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)h; (void)v; (void)f0;
-		return {};
+		return f0 + (ColorRgba{1.f, 1.f, 1.f} - f0) * pow(1 - std::max(0.f, (Vector3::Dot(h, v))), 5.f);
 	}
 
 	/**
@@ -65,10 +56,14 @@ namespace gfx
 	[[maybe_unused]]
 	static float NormalDistribution_GGX(const Vector3& n, const Vector3& h, const float roughness)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)h; (void)roughness;
-		return {};
+		float alpha_squared{ (roughness * roughness) * (roughness * roughness) };
+
+		float dot_nh{ std::max(0.f, Vector3::Dot(n, h)) };
+		float dot_nh_squared{ dot_nh * dot_nh };
+
+		float denominator{ static_cast<float>(std::numbers::pi) * ((dot_nh_squared * (alpha_squared - 1) + 1) * (dot_nh_squared * (alpha_squared - 1) + 1)) };
+
+		return alpha_squared / denominator;
 	}
 
 	/**
@@ -82,10 +77,19 @@ namespace gfx
 	static float GeometryFunction_SchlickGGX(const Vector3& n, const Vector3& v, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)v; (void)roughness;
-		return {};
+		float dot_nv{ std::max(0.f, Vector3::Dot(n,v)) };
+		float k{};
+
+		if (is_indirect)
+		{
+			k = (roughness * roughness) / 2.f;
+		}
+		else
+		{
+			k = ((roughness + 1.f) * (roughness + 1.f)) / 8.f;
+		}
+
+		return dot_nv / (dot_nv * (1 - k) + k);
 	}
 
 	/**
@@ -100,10 +104,10 @@ namespace gfx
 	static float GeometryFunction_Smith(const Vector3& n, const Vector3& v, const Vector3& l, const float roughness,
 		[[maybe_unused]] const bool is_indirect = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)n; (void)v; (void)l; (void)roughness;
-		return {};
+		float masking{ GeometryFunction_SchlickGGX(n, v, roughness, is_indirect) };
+		float shadowing{ GeometryFunction_SchlickGGX(n, l, roughness, is_indirect) };
+
+		return masking * shadowing;
 	}
 }
 #endif
