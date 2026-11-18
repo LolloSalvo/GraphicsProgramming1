@@ -6,7 +6,33 @@
 #include <software_path_tracer.h>
 #include <scenes.h>
 #include <intersections.h>
+
 using namespace gfx;
+
+namespace 
+{
+	uint32_t LowBias32(uint32_t h)
+	{
+		h ^= h >> 16; h *= 0x7feb352du;
+		h ^= h >> 15; h *= 0x846ca68bu;
+		h ^= h >> 16;
+		return h;
+	}
+
+	float HashToFloat(const uint32_t h)
+	{
+		return static_cast<float>(h >> 8) * (1.f / 16777216.f);
+	}
+
+	Vector3 LocalToWorld(const Vector3& local_dir, const Vector3& normal)
+	{
+		Vector3 helper{ std::abs(normal.x) > 0.9f ? Vector3{ 0.f, 1.f, 0.f } : Vector3{ 1.f, 0.f, 0.f } };
+		Vector3 tangent{ Vector3::Cross(normal, helper).Normalized() };
+		Vector3 bitangent{ Vector3::Cross(normal, tangent) };
+
+		return tangent * local_dir.x + bitangent * local_dir.y + normal * local_dir.z;
+	}
+}
 
 // =============================================================================
 // Construction / Destruction
@@ -38,16 +64,39 @@ void SoftwarePathTracer::Render()
 
 	Scene* active_scene{ context_->scene_manager->GetActiveScene() };
 	DebugParams debug_params{ context_->debug_params };
-	VisualizationMode vis_mode{ debug_params.visualization_mode };
+	VisualizationMode current_vis_mode{ debug_params.visualization_mode };
+	const SamplingStrategy current_sampling{ debug_params.sampling_strategy };
+
+	uint32_t total_pixels{ static_cast<uint32_t>(surface_width * surface_height) };
+
+	if (active_scene->scene_changed || accumulation_buffer_.size() != total_pixels
+		|| current_vis_mode != last_vis_mode_
+		|| current_sampling != last_sampling_strategy_)
+	{
+		context_->debug_params.accumulated_samples = 0;
+		accumulation_buffer_.assign(total_pixels, ColorRgba::Black());
+		last_vis_mode_ = current_vis_mode;
+		last_sampling_strategy_ = current_sampling;
+	}
+
+	if (context_->debug_params.accumulated_samples >= context_->debug_params.max_samples)
+	{
+		return;
+	}
+
+	const bool is_debug_view{ current_vis_mode != VisualizationMode::kNone
+		&& current_vis_mode != VisualizationMode::kDirectOnly };
 
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < surface_height; ++py)
 	{
 		for (int px{}; px < surface_width; ++px)
 		{
+			uint32_t pixel_index{ px + (py * surface_info.width) };
 
-			float x{ (2 * ((px + 0.5f) / surface_info.width) - 1) * aspectRatio * fov } ;
-			float y{ (1 - 2 * ((py + 0.5f) / surface_info.height)) * fov };
+			const Vector2 jitter{ GenerateSubpixelJitter(pixel_index) };
+			float x{ (2 * ((static_cast<float>(px) + jitter.x) / surface_info.width) - 1) * aspectRatio * fov } ;
+			float y{ (1 - 2 * ((static_cast<float>(py) + jitter.y) / surface_info.height)) * fov };
 
 			Vector3 ray_direction_camera_space{ x,y,1.f };
 
@@ -80,22 +129,22 @@ void SoftwarePathTracer::Render()
 						std::clamp(closest_hit_record.t / max_depth, 0.f, 1.f) };
 					final_color = { scaled_t, scaled_t, scaled_t };
 				}
-				else if (vis_mode == VisualizationMode::kNormals)
+				else if (current_vis_mode == VisualizationMode::kNormals)
 				{
 					final_color = {
 						(shading_input.world_normal.x + 1.f) * 0.5f,
 						(shading_input.world_normal.y + 1.f) * 0.5f,
 						(shading_input.world_normal.z + 1.f) * 0.5f };
 				}
-				else if (vis_mode == VisualizationMode::kAlbedo)
+				else if (current_vis_mode == VisualizationMode::kAlbedo)
 				{
 					final_color = surface.albedo;
 				}
-				else if (vis_mode == VisualizationMode::kMetallicRoughness)
+				else if (current_vis_mode == VisualizationMode::kMetallicRoughness)
 				{
 					final_color = { 0.f, surface.roughness, surface.metallic };
 				}
-				else if (vis_mode == VisualizationMode::kUV)
+				else if (current_vis_mode == VisualizationMode::kUV)
 				{
 					if (shading_input.texture_coordinates.has_value())
 					{
@@ -107,116 +156,33 @@ void SoftwarePathTracer::Render()
 					}
 					else
 					{
-						final_color = { 0.f, 0.f, 0.f }; // Nero se la mesh colpita non ha UV map
+						final_color = { 0.f, 0.f, 0.f };
 					}
 				}
-				else if (vis_mode == VisualizationMode::kDirectOnly)
+				else if (current_vis_mode == VisualizationMode::kDirectOnly)
 				{
-					Vector3 light_dir{};
-					for (Light* light : active_scene->lights_factory.GetAll())
-					{
-						if (light->type == LightType::kDirectional)
-						{
-							light_dir = -light->direction;
-						}
-						else
-						{
-							light_dir = light->origin - shading_input.world_position;
-						}
-
-						const float light_distance{ light_dir.Normalize() };
-						//light_dir.Normalize();
-
-						const float cos_theta{ Vector3::Dot(shading_input.world_normal, light_dir) };
-						if (cos_theta <= 0.f)
-						{
-							continue;
-						}
-
-						const Ray shadow_ray{
-							.origin = shading_input.shadow_origin,
-							.direction = light_dir,
-							.min = 0.001f,
-							.max = light->type == LightType::kDirectional
-								? std::numeric_limits<float>::max() : light_distance
-						};
-						RayHitRecord shadow_hit{};
-
-						if (SceneClosestHitTest(shadow_ray, shadow_hit, true))
-						{
-							continue;
-						}
-
-						shading_input.light_direction = light_dir;
-						
-						ColorRgba radiance = CalculateRadiance(light, shading_input.world_position);
-
-						ColorRgba brdf{ material->Shade(shading_input, surface) };
-
-						final_color += radiance * brdf * cos_theta;
-
-					}
-
-					final_color = final_color.Tonemap(debug_params.tone_map_operator);
-					final_color = final_color.ToSrgb();
-
-					final_color.Clamp();
+					final_color = DirectIllumination(shading_input, surface, material, active_scene);
 
 				}
-				else if (vis_mode == VisualizationMode::kNone)
+				else if (current_vis_mode == VisualizationMode::kNone)
 				{
-					Vector3 light_dir{};
-					for (Light* light : active_scene->lights_factory.GetAll())
-					{
-						if (light->type == LightType::kDirectional)
-						{
-							light_dir = -light->direction;
-						}
-						else
-						{
-							light_dir = light->origin - shading_input.world_position;
-						}
-
-						const float light_distance{ light_dir.Normalize() };
-						//light_dir.Normalize();
-
-						const float cos_theta{ Vector3::Dot(shading_input.world_normal, light_dir) };
-						if (cos_theta <= 0.f)
-						{
-							continue;
-						}
-
-						const Ray shadow_ray{
-							.origin = shading_input.shadow_origin,
-							.direction = light_dir,
-							.min = 0.001f,
-							.max = light->type == LightType::kDirectional
-								? std::numeric_limits<float>::max() : light_distance
-						};
-						RayHitRecord shadow_hit{};
-
-						if (SceneClosestHitTest(shadow_ray, shadow_hit, true))
-						{
-							continue;
-						}
-
-						shading_input.light_direction = light_dir;
-
-						ColorRgba radiance = CalculateRadiance(light, shading_input.world_position);
-
-						ColorRgba brdf{ material->Shade(shading_input, surface) };
-
-						final_color += radiance * brdf * cos_theta;
-
-					}
-
-					final_color = final_color.Tonemap(debug_params.tone_map_operator);
-					final_color = final_color.ToSrgb();
-
-					final_color.Clamp();
-
+					const float ao{ TraceAO(shading_input, pixel_index) };
+					final_color = ColorRgba{ ao, ao, ao };
 				}
 			}
+
+			if (!is_debug_view)
+			{
+				const float inv_frames{ 1.f / static_cast<float>(context_->debug_params.accumulated_samples + 1) };
+				accumulation_buffer_[pixel_index] += final_color;
+
+				final_color = accumulation_buffer_[pixel_index] * inv_frames;
+
+				final_color = final_color.Tonemap(debug_params.tone_map_operator);
+				final_color = final_color.ToSrgb();
+			}
+			
+			final_color.Clamp();
 
 
 			// Write to surface
@@ -226,6 +192,11 @@ void SoftwarePathTracer::Render()
 				static_cast<uint8_t>(final_color.g * 255),
 				static_cast<uint8_t>(final_color.b * 255));
 		}
+	}
+
+	if (!is_debug_view)
+	{
+		++context_->debug_params.accumulated_samples;
 	}
 }
 
@@ -535,7 +506,139 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	return shading_input;
 }
 
-ColorRgba SoftwarePathTracer::CalculateRadiance(Light* light, const Vector3& world_pos)
+float SoftwarePathTracer::TraceAO(const ShadingInput& shading_input, uint32_t pixel_index) const
+{
+	float visibility_sum{ 0.f };
+	const bool use_uniform{ context_->debug_params.sampling_strategy == SamplingStrategy::kUniform };
+
+	for (uint32_t s{0}; s < ao_sample_count_; ++s)
+	{
+		const uint32_t ao_seed{ pixel_index * 1973u + s * 6133u + context_->debug_params.accumulated_samples * 2654435761u };
+
+		HemisphereSample sample{};
+
+		if (use_uniform)
+		{
+			sample = UniformSampleHemisphere(shading_input.world_normal, ao_seed);
+		}
+		else
+		{
+			sample = CosineSampleHemisphere(shading_input.world_normal, ao_seed);
+		}
+
+		const Ray ao_ray{
+			.origin = shading_input.shadow_origin,
+			.direction = sample.direction,
+			.min = 0.001f,
+			.max = ao_radius_
+		};
+
+		RayHitRecord ao_hit{};
+		if (SceneClosestHitTest(ao_ray, ao_hit, true))
+		{
+			continue;
+		}
+
+		const float cos_theta{ std::max(0.f, Vector3::Dot(sample.direction, shading_input.world_normal)) };
+		const float f{ cos_theta / static_cast<float>(std::numbers::pi) };
+
+		if (sample.pdf > 0.f)
+		{
+			visibility_sum += f / sample.pdf;
+		}
+	}
+
+	return visibility_sum / static_cast<float>(ao_sample_count_);
+}
+
+HemisphereSample SoftwarePathTracer::UniformSampleHemisphere(const Vector3& normal, uint32_t seed)
+{
+	uint32_t h{ LowBias32(seed) };
+	const float u1{ HashToFloat(h) };
+	h = LowBias32(h);
+	const float u2{ HashToFloat(h) };
+	
+	const float cos_theta{ u2 };
+	const float sin_theta{ sqrtf(1 - (cos_theta * cos_theta)) };
+	const float phi{ 2 * static_cast<float>(std::numbers::pi)* u1 };
+
+	Vector3 local_dir{ std::cos(phi) * sin_theta, std::sin(phi) * sin_theta, cos_theta };
+
+	const float pdf{ 1 / (2 * static_cast<float>(std::numbers::pi)) };
+	return { LocalToWorld(local_dir, normal), pdf };
+}
+
+HemisphereSample SoftwarePathTracer::CosineSampleHemisphere(const Vector3& normal, uint32_t seed)
+{
+	uint32_t h{ LowBias32(seed) };
+	const float u1{ HashToFloat(h) };
+	h = LowBias32(h);
+	const float u2{ HashToFloat(h) };
+
+	const float cos_theta{ sqrtf(1 - u2 ) };
+	const float sin_theta{ sqrtf(u2) };
+	const float phi{ 2 * static_cast<float>(std::numbers::pi) * u1 };
+
+	Vector3 local_dir{ sin_theta * std::cos(phi), sin_theta * std::sin(phi), cos_theta };
+	
+	const float pdf{ cos_theta / static_cast<float>(std::numbers::pi) };
+	return { LocalToWorld(local_dir, normal), pdf };
+}
+
+ColorRgba SoftwarePathTracer::DirectIllumination(const ShadingInput& shading_input, const SurfaceProperties& surface,
+                                                 const Material* material, const Scene* scene) const
+{
+	ColorRgba final_color{ ColorRgba::Black() };
+	ShadingInput input{ shading_input };
+	Vector3 light_dir{};
+	for (Light* light : scene->lights_factory.GetAll())
+	{
+		if (light->type == LightType::kDirectional)
+		{
+			light_dir = -light->direction;
+		}
+		else
+		{
+			light_dir = light->origin - input.world_position;
+		}
+
+		const float light_distance{ light_dir.Normalize() };
+		//light_dir.Normalize();
+
+		const float cos_theta{ Vector3::Dot(input.world_normal, light_dir) };
+		if (cos_theta <= 0.f)
+		{
+			continue;
+		}
+
+		const Ray shadow_ray{
+			.origin = input.shadow_origin,
+			.direction = light_dir,
+			.min = 0.001f,
+			.max = light->type == LightType::kDirectional
+				? std::numeric_limits<float>::max() : light_distance
+		};
+		RayHitRecord shadow_hit{};
+
+		if (SceneClosestHitTest(shadow_ray, shadow_hit, true))
+		{
+			continue;
+		}
+
+		input.light_direction = light_dir;
+
+		ColorRgba radiance = CalculateRadiance(light, input.world_position);
+
+		ColorRgba brdf{ material->Shade(input, surface) };
+
+		final_color += radiance * brdf * cos_theta;
+
+	}
+
+	return final_color;
+}
+
+ColorRgba SoftwarePathTracer::CalculateRadiance(Light* light, const Vector3& world_pos) const
 {
 	switch (light->type)
 	{
@@ -551,3 +654,21 @@ ColorRgba SoftwarePathTracer::CalculateRadiance(Light* light, const Vector3& wor
 		return { 0.f, 0.f, 0.f };
 	}
 }
+
+Vector2 SoftwarePathTracer::GenerateSubpixelJitter(uint32_t pixel_index) const
+{
+	const uint32_t frame{ context_->debug_params.accumulated_samples };
+	const uint32_t frame_hash{ LowBias32(frame + 0x9E3779B9u) };
+
+	uint32_t h{ LowBias32(pixel_index ^ frame_hash) };
+
+	const float jx{ HashToFloat(h) };
+	h = LowBias32(h);
+	const float jy{ HashToFloat(h) };
+
+	return { jx, jy };
+}
+
+
+
+
