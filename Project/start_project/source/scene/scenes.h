@@ -37,25 +37,25 @@ namespace gfx
 				.type = LightType::kPoint });
 
 			// Material Setup
-			const uint32_t mat_red { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.8f, 0.2f, 0.2f) }) };
-			const uint32_t mat_green { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.2f, 0.8f, 0.2f) }) };
-			const uint32_t mat_blue { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.2f, 0.2f, 0.8f) }) };
-			const uint32_t mat_white { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
+			const uint32_t mat_red{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.8f, 0.2f, 0.2f) }) };
+			const uint32_t mat_green{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.2f, 0.8f, 0.2f) }) };
+			const uint32_t mat_blue{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.2f, 0.2f, 0.8f) }) };
+			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
 
 			// Spheres setup
-			const uint32_t s0 { primitives_factory.Create<Sphere>(Vector3(-3.f, 1.f, 0.f), 1.f) };
-			const uint32_t s1 { primitives_factory.Create<Sphere>(Vector3(0.f, 1.f, 0.f), 1.f) };
-			const uint32_t s2 { primitives_factory.Create<Sphere>(Vector3(3.f, 1.f, 0.f), 1.f) };
+			const uint32_t s0{ primitives_factory.Create<Sphere>(Vector3(-3.f, 1.f, 0.f), 1.f) };
+			const uint32_t s1{ primitives_factory.Create<Sphere>(Vector3(0.f, 1.f, 0.f), 1.f) };
+			const uint32_t s2{ primitives_factory.Create<Sphere>(Vector3(3.f, 1.f, 0.f), 1.f) };
 			objects.push_back({ .primitive_index = s0, .material_index = mat_red });
 			objects.push_back({ .primitive_index = s1, .material_index = mat_green });
 			objects.push_back({ .primitive_index = s2, .material_index = mat_blue });
 
 			// Floor plane setup
-			const uint32_t floor { primitives_factory.Create<Plane>(
+			const uint32_t floor{ primitives_factory.Create<Plane>(
 				Vector3(0.f, 0.f, 0.f), Vector3(0.f, 1.f, 0.f)) };
 			objects.push_back({ .primitive_index = floor, .material_index = mat_white });
 
@@ -85,11 +85,11 @@ namespace gfx
 				.type = LightType::kPoint });
 
 			// Material Setup
-			const uint32_t mat_white { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
+			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
 
 			// One sphere primitive, instanced 9 times
-			const uint32_t sphere { primitives_factory.Create<Sphere>(Vector3(0.f, 0.f, 0.f), 1.f) };
+			const uint32_t sphere{ primitives_factory.Create<Sphere>(Vector3(0.f, 0.f, 0.f), 1.f) };
 			for (int row = 0; row < 3; ++row)
 			{
 				for (int col = 0; col < 3; ++col)
@@ -128,14 +128,14 @@ namespace gfx
 				.type = LightType::kPoint });
 
 			// Material Setup
-			const uint32_t mat_red { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.8f, 0.2f, 0.2f) }) };
-			const uint32_t mat_green { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.2f, 0.8f, 0.2f) }) };
-			const uint32_t mat_blue { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.2f, 0.2f, 0.8f) }) };
-			const uint32_t mat_white { materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
+			const uint32_t mat_red{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.8f, 0.2f, 0.2f) }) };
+			const uint32_t mat_green{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.2f, 0.8f, 0.2f) }) };
+			const uint32_t mat_blue{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.2f, 0.2f, 0.8f) }) };
+			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
 
 			// 3 triangles centered at origin, each with a different cull mode
 			tri0 = primitives_factory.Create<Triangle>(
@@ -180,7 +180,7 @@ namespace gfx
 	struct BunnyScene final : public Scene
 	{
 		float light_time{ 0.f };
-		uint32_t light_index{ 0 }; 
+		uint32_t light_index{ 0 };
 		bool rotating_lights{ true };
 
 		void Setup() override
@@ -190,7 +190,7 @@ namespace gfx
 			camera.SetFovAngle(45.f);
 
 			// Light setup
-			light_index =lights_factory.Create<Light>(Light{
+			light_index = lights_factory.Create<Light>(Light{
 				.origin = {0.f, 4.f, 5.f},
 				.color = ColorRgba::White(),
 				.intensity = 50.f,
@@ -200,9 +200,9 @@ namespace gfx
 			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(
 				LambertMaterialParams{.diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
 			const uint32_t mat_red{ materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.75f, 0.15f, 0.15f) }) };
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.75f, 0.15f, 0.15f) }) };
 			const uint32_t mat_green{ materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.15f, 0.75f, 0.15f) }) };
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.15f, 0.75f, 0.15f) }) };
 
 			// Load bunny mesh
 			AssetLoader loader{};
@@ -266,28 +266,28 @@ namespace gfx
 		void Setup() override
 		{
 			// Camera setup
-		#define CAMERA_SETUP 0
-		#if CAMERA_SETUP == 0
+#define CAMERA_SETUP 0
+#if CAMERA_SETUP == 0
 			camera.SetPosition({ 0.564f, 0.696f, -0.980f });
 			camera.SetFovAngle(45.f);
 			camera.Pitch(-0.3260f);
 			camera.Yaw(0.54f);
-		#elif CAMERA_SETUP == 1
+#elif CAMERA_SETUP == 1
 			camera.SetPosition({ 0.202f, 0.628f, -0.425f });
 			camera.SetFovAngle(45.f);
 			camera.Pitch(-0.3260f);
 			camera.Yaw(0.4950f);
-		#elif CAMERA_SETUP == 2
+#elif CAMERA_SETUP == 2
 			camera.SetPosition({ -0.185f, 0.373f, -0.365f });
 			camera.SetFovAngle(45.f);
 			camera.Pitch(0.3820f);
 			camera.Yaw(-0.5010f);
-		#else
+#else
 			camera.SetPosition({ -0.183f, 0.566f, -0.238f });
 			camera.SetFovAngle(45.f);
 			camera.Pitch(-0.0500f);
 			camera.Yaw(-0.7170f);
-		#endif
+#endif
 
 			// HDRI environment map
 			environment_map.emplace(EnvironmentMap{
@@ -353,9 +353,9 @@ namespace gfx
 			const uint32_t mat_white{ materials_factory.Create<LambertMaterial>(
 				LambertMaterialParams{.diffuse_color = ColorRgba(0.7f, 0.7f, 0.7f) }) };
 			const uint32_t mat_red{ materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.75f, 0.15f, 0.15f) }) };
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.75f, 0.15f, 0.15f) }) };
 			const uint32_t mat_green{ materials_factory.Create<LambertMaterial>(
-				LambertMaterialParams{ .diffuse_color = ColorRgba(0.15f, 0.75f, 0.15f) }) }	;
+				LambertMaterialParams{.diffuse_color = ColorRgba(0.15f, 0.75f, 0.15f) }) };
 
 			// PBR material setup
 			const uint32_t mat_chrome{ materials_factory.Create<PbrMaterial>(
@@ -369,9 +369,9 @@ namespace gfx
 					.metallic_factor = 1.f, .roughness_factor = 0.35f }) };
 
 			// 3 PBR spheres
-			const uint32_t s0 {primitives_factory.Create<Sphere>(Vector3(-2.5f, 1.5f, 5.f), 1.5f)};
-			const uint32_t s1 {primitives_factory.Create<Sphere>(Vector3(0.f, 1.f, 3.f), 1.f)};
-			const uint32_t s2 {primitives_factory.Create<Sphere>(Vector3(2.5f, 1.5f, 5.f), 1.5f)};
+			const uint32_t s0{ primitives_factory.Create<Sphere>(Vector3(-2.5f, 1.5f, 5.f), 1.5f) };
+			const uint32_t s1{ primitives_factory.Create<Sphere>(Vector3(0.f, 1.f, 3.f), 1.f) };
+			const uint32_t s2{ primitives_factory.Create<Sphere>(Vector3(2.5f, 1.5f, 5.f), 1.5f) };
 			objects.push_back({ .primitive_index = s0, .material_index = mat_chrome });
 			objects.push_back({ .primitive_index = s1, .material_index = mat_rough_plastic });
 			objects.push_back({ .primitive_index = s2, .material_index = mat_gold });
@@ -407,12 +407,9 @@ namespace gfx
 		void Setup() override
 		{
 			// Camera setup
-			camera.SetPosition({ 0, 3.f, -7.f });
+			camera.SetPosition({ 0, 3.2f, -7.85f });
 			camera.SetFovAngle(50.f);
 			camera.Pitch(-0.25f);
-
-			// Fallback sky color (visible at step 0 before HDRI is enabled)
-			background_color = ColorRgba(0.5f, 0.7f, 1.0f);
 
 			// HDRI environment map
 			environment_map.emplace(EnvironmentMap{
@@ -427,16 +424,24 @@ namespace gfx
 				.type = LightType::kPoint });
 
 			// PBR material setup
+			// Tinted glass (KHR_materials_volume): the colour builds up with the distance
+			// travelled inside, so rays through the centre come out teal and rays grazing
+			// the rim stay almost clear. attenuation_distance = one radius.
 			const uint32_t mat_glass{ materials_factory.Create<PbrMaterial>(
 				PbrMaterialParams{.albedo_color_factor = {1.f, 1.f, 1.f},
 					.metallic_factor = 0.f, .roughness_factor = 0.f,
-					.transmission_factor = 1.f, .ior = 1.5f }) };
+					.transmission_factor = 1.f, .ior = 1.5f,
+					.attenuation_color = {0.25f, 0.85f, 0.75f},
+					.attenuation_distance = 0.8f }) };
 			const uint32_t mat_rough_plastic{ materials_factory.Create<PbrMaterial>(
 				PbrMaterialParams{.albedo_color_factor = {0.8f, 0.2f, 0.15f},
 					.metallic_factor = 0.f, .roughness_factor = 0.6f }) };
 			const uint32_t mat_polished_metal{ materials_factory.Create<PbrMaterial>(
 				PbrMaterialParams{.albedo_color_factor = {0.95f, 0.93f, 0.88f},
 					.metallic_factor = 1.f, .roughness_factor = 0.05f }) };
+			const uint32_t mat_rough_metal{ materials_factory.Create<PbrMaterial>(
+				PbrMaterialParams{.albedo_color_factor = {1.f, 0.782f, 0.344f},
+					.metallic_factor = 1.f, .roughness_factor = 0.35f }) };
 			const uint32_t mat_polished_plastic{ materials_factory.Create<PbrMaterial>(
 				PbrMaterialParams{.albedo_color_factor = {0.15f, 0.35f, 0.75f},
 					.metallic_factor = 0.f, .roughness_factor = 0.05f,
@@ -454,18 +459,20 @@ namespace gfx
 				false, Vector2(6.f, 6.f)) };
 			objects.push_back({ .primitive_index = ground, .material_index = mat_ground });
 
-			// 4 spheres in a row
-			const uint32_t s0{ primitives_factory.Create<Sphere>(Vector3(-3.f, 0.8f, 0.f), 0.8f) };
-			const uint32_t s1{ primitives_factory.Create<Sphere>(Vector3(-1.f, 0.8f, 0.f), 0.8f) };
-			const uint32_t s2{ primitives_factory.Create<Sphere>(Vector3(1.f, 0.8f, 0.f), 0.8f) };
-			const uint32_t s3{ primitives_factory.Create<Sphere>(Vector3(3.f, 0.8f, 0.f), 0.8f) };
+			// 5 spheres in a row: tinted glass, rough plastic, mirror metal, rough metal, polished plastic
+			const uint32_t s0{ primitives_factory.Create<Sphere>(Vector3(-4.f, 0.8f, 0.f), 0.8f) };
+			const uint32_t s1{ primitives_factory.Create<Sphere>(Vector3(-2.f, 0.8f, 0.f), 0.8f) };
+			const uint32_t s2{ primitives_factory.Create<Sphere>(Vector3(0.f, 0.8f, 0.f), 0.8f) };
+			const uint32_t s3{ primitives_factory.Create<Sphere>(Vector3(2.f, 0.8f, 0.f), 0.8f) };
+			const uint32_t s4{ primitives_factory.Create<Sphere>(Vector3(4.f, 0.8f, 0.f), 0.8f) };
 			objects.push_back({ .primitive_index = s0, .material_index = mat_glass });
 			objects.push_back({ .primitive_index = s1, .material_index = mat_rough_plastic });
-			objects.push_back({ .primitive_index = s2, .material_index = mat_polished_metal });
-			objects.push_back({ .primitive_index = s3, .material_index = mat_polished_plastic });
+			objects.push_back({ .primitive_index = s2, .material_index = mat_polished_plastic });
+			objects.push_back({ .primitive_index = s3, .material_index = mat_rough_metal });
+			objects.push_back({ .primitive_index = s4, .material_index = mat_polished_metal });
 
 			// Small yellow sphere behind glass sphere to showcase transparency
-			const uint32_t bs0{ primitives_factory.Create<Sphere>(Vector3(-3.f, 0.4f, 1.8f), 0.35f) };
+			const uint32_t bs0{ primitives_factory.Create<Sphere>(Vector3(-4.f, 0.4f, 1.8f), 0.35f) };
 			objects.push_back({ .primitive_index = bs0, .material_index = mat_bg_sphere });
 		}
 	};
@@ -576,7 +583,7 @@ namespace gfx
 
 			// Right: PBR metallic, very smooth (pure specular mirror)
 			const uint32_t mat_pbr_smooth{ materials_factory.Create<PbrMaterial>(
-				PbrMaterialParams{ .albedo_color_factor = ColorRgba::White(),
+				PbrMaterialParams{.albedo_color_factor = ColorRgba::White(),
 					.metallic_factor = 1.f, .roughness_factor = 0.05f }) };
 			const uint32_t sphere_r{ primitives_factory.Create<Sphere>(
 				Vector3(2.5f, 0.f, 0.f), 1.f) };
@@ -596,7 +603,7 @@ namespace gfx
 		void Setup() override
 		{
 			const uint32_t mat_unlit{ materials_factory.Create<UnlitMaterial>(
-				UnlitMaterialParams{ .color = ColorRgba::White() }) };
+				UnlitMaterialParams{.color = ColorRgba::White() }) };
 
 			const std::vector<Vertex> vertices
 			{
@@ -625,7 +632,7 @@ namespace gfx
 			camera.SetFovAngle(60.f);
 
 			const uint32_t mat_unlit{ materials_factory.Create<UnlitMaterial>(
-				UnlitMaterialParams{ .color = ColorRgba::White() }) };
+				UnlitMaterialParams{.color = ColorRgba::White() }) };
 
 			const std::vector<Vertex> vertices
 			{
@@ -651,7 +658,7 @@ namespace gfx
 			camera.SetFovAngle(60.f);
 
 			const uint32_t mat_unlit{ materials_factory.Create<UnlitMaterial>(
-				UnlitMaterialParams{ .color = ColorRgba::White() }) };
+				UnlitMaterialParams{.color = ColorRgba::White() }) };
 
 			// Front triangle (red): smaller, closer.
 			const std::vector<Vertex> vertices_0
@@ -700,20 +707,20 @@ namespace gfx
 	{
 		void Setup() override
 		{
-		#define SHOWCASE_DISTORTION_VIEW 0
-		#if SHOWCASE_DISTORTION_VIEW == 1
+#define SHOWCASE_DISTORTION_VIEW 0
+#if SHOWCASE_DISTORTION_VIEW == 1
 			camera.SetPosition({ 6.866f, -0.003f, -5.599f });
 			camera.SetFovAngle(60.0f);
 			camera.Pitch(-0.0090f);
 			camera.Yaw(0.8730f);
 			camera.SetFovAngle(60.f);
-		#else
+#else
 			camera.SetPosition({ 0, 0, -10.f });
 			camera.SetFovAngle(60.f);
-		#endif
+#endif
 
 			const uint32_t debug_texture{ textures_factory.Create<Texture>(
-				"resources/textures/debug_textures/uv_grid_2.png") };
+				"resources/textures/debug_textures/uv_grid_2.png", true) };
 			const uint32_t mat_textured{ materials_factory.Create<UnlitMaterial>(
 				UnlitMaterialParams{
 					.color = ColorRgba::White(),
@@ -741,12 +748,12 @@ namespace gfx
 			// Left: Triangle list — each 3 indices form one independent triangle.
 			// Winding produces positive edge-function cross products in screen
 			// space, matching OpenGL/Vulkan CCW front-face convention.
-			const std::vector<uint32_t> list_indices {
+			const std::vector<uint32_t> list_indices{
 				3, 0, 4,  0, 1, 4,   // Top-left quad
 				4, 1, 5,  1, 2, 5,   // Top-right quad
 				6, 3, 7,  3, 4, 7,   // Bottom-left quad
 				7, 4, 8,  4, 5, 8 }; // Bottom-right quad
-			const uint32_t list_mesh {primitives_factory.Create<TriangleMesh>(
+			const uint32_t list_mesh{ primitives_factory.Create<TriangleMesh>(
 				vertices, list_indices, CullMode::kNoCulling, PrimitiveTopology::kTriangleList) };
 			objects.push_back({
 				.primitive_index = list_mesh,
@@ -757,10 +764,10 @@ namespace gfx
 			// the previous two. Degenerate triangles (repeated indices) restart
 			// the strip for row 2.
 			// Row 1: 3-0-4-1-5-2  |  Degenerates: 2-6  |  Row 2: 6-3-7-4-8-5
-			const std::vector<uint32_t> strip_indices {
+			const std::vector<uint32_t> strip_indices{
 				3, 0, 4, 1, 5, 2, 2,
 				6, 6, 3, 7, 4, 8, 5 };
-			const uint32_t strip_mesh {primitives_factory.Create<TriangleMesh>(
+			const uint32_t strip_mesh{ primitives_factory.Create<TriangleMesh>(
 				vertices, strip_indices, CullMode::kNoCulling, PrimitiveTopology::kTriangleStrip) };
 			objects.push_back({
 				.primitive_index = strip_mesh,
