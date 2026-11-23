@@ -11,12 +11,6 @@
 
 using namespace gfx;
 
-struct BounceSample
-{
-	Vector3 direction{};
-	ColorRgba weight{ ColorRgba::Black() };
-};
-
 // =============================================================================
 // Construction / Destruction
 // =============================================================================
@@ -71,7 +65,8 @@ void SoftwarePathTracer::Render()
 	}
 
 	const bool is_debug_view{ current_vis_mode != VisualizationMode::kNone
-		&& current_vis_mode != VisualizationMode::kDirectOnly };
+		&& current_vis_mode != VisualizationMode::kDirectOnly
+		&& current_vis_mode != VisualizationMode::kBounceCount };
 
 #pragma omp parallel for schedule(dynamic, 16)
 	for (int py{}; py < surface_height; ++py)
@@ -159,8 +154,11 @@ void SoftwarePathTracer::Render()
 				accumulation_buffer_[pixel_index] += sample_color;
 				final_color = accumulation_buffer_[pixel_index] * inv_frames;
 
-				final_color = final_color.Tonemap(debug_params.tone_map_operator);
-				final_color = final_color.ToSrgb();
+				if (current_vis_mode != VisualizationMode::kBounceCount)
+				{
+					final_color = final_color.Tonemap(debug_params.tone_map_operator);
+					final_color = final_color.ToSrgb();
+				}
 			}
 			
 			final_color.Clamp();
@@ -181,10 +179,11 @@ void SoftwarePathTracer::Render()
 	}
 }
 
-bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record) const
+bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& closest_hit, bool ignore_record, bool reverse_culling) const
 {
 	float closest_ray_length{ ray.max };
 	bool hit_something{ false };
+	const bool culling_flag{ ignore_record || reverse_culling };
 
 	Scene* active_scene{ context_->scene_manager->GetActiveScene() };
 	if (active_scene == nullptr)
@@ -233,11 +232,26 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 			break;
 
 		case PrimitiveType::kTriangle:
-			if (HitTestTriangle(static_cast<const Triangle&>(*primitive), ray_model_space, temp_hit_record, ignore_record))
+		{
+			Triangle triangle{ static_cast<const Triangle&>(*primitive) };
+			if (culling_flag)
+			{
+				if (triangle.cull_mode == CullMode::kBackFaceCulling)
+				{
+					triangle.cull_mode = CullMode::kFrontFaceCulling;
+				}
+				else if (triangle.cull_mode == CullMode::kFrontFaceCulling)
+				{
+					triangle.cull_mode = CullMode::kBackFaceCulling;
+				}
+			}
+
+			if (HitTestTriangle(triangle, ray_model_space, temp_hit_record, ignore_record))
 			{
 				hit_primitive = true;
 			}
 			break;
+		}
 		case PrimitiveType::kTriangleMesh:
 		{
 			const TriangleMesh& mesh = static_cast<const TriangleMesh&>(*primitive);
@@ -276,16 +290,23 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray, RayHitRecord& close
 						triangle.v1 = mesh.vertices[idx1].position;
 						triangle.v2 = mesh.vertices[idx2].position;
 						triangle.cull_mode = mesh.cull_mode;
+						if (culling_flag)
+						{
+							if (triangle.cull_mode == CullMode::kBackFaceCulling)
+							{
+								triangle.cull_mode = CullMode::kFrontFaceCulling;
+							}
+							else if (triangle.cull_mode == CullMode::kFrontFaceCulling)
+							{
+								triangle.cull_mode = CullMode::kBackFaceCulling;
+							}
+						}
 
 						const Vector3 edge1 = triangle.v1 - triangle.v0;
 						const Vector3 edge2 = triangle.v2 - triangle.v0;
 						triangle.normal = Vector3::Cross(edge1, edge2).Normalized();
 
-						if (HitTestTriangle(
-							triangle,
-							ray_model_space,
-							temp_hit_record,
-							ignore_record))
+						if (HitTestTriangle(triangle, ray_model_space, temp_hit_record, ignore_record))
 						{
 							hit_primitive = true;
 
@@ -488,7 +509,7 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 }
 
 ColorRgba SoftwarePathTracer::DirectIllumination(const ShadingInput& shading_input, const SurfaceProperties& surface,
-                                                 const Material* material, const Scene* scene) const
+                                                 const Material* material, const Scene* scene, uint32_t& hash_state) const
 {
 	ColorRgba final_color{ ColorRgba::Black() };
 	ShadingInput input{ shading_input };
@@ -522,7 +543,8 @@ ColorRgba SoftwarePathTracer::DirectIllumination(const ShadingInput& shading_inp
 		};
 		RayHitRecord shadow_hit{};
 
-		if (SceneClosestHitTest(shadow_ray, shadow_hit, true))
+		const ColorRgba transmittance{ ShadowTransmittance(shadow_ray, scene, hash_state) };
+		if (transmittance.Luminance() <= 0.f)
 		{
 			continue;
 		}
@@ -533,7 +555,7 @@ ColorRgba SoftwarePathTracer::DirectIllumination(const ShadingInput& shading_inp
 
 		ColorRgba brdf{ material->Shade(input, surface) };
 
-		final_color += radiance * brdf * cos_theta;
+		final_color += transmittance * radiance * brdf * cos_theta;
 
 	}
 
@@ -575,10 +597,12 @@ ColorRgba SoftwarePathTracer::TracePath(const Ray& ray, const Scene* scene, uint
 	Ray current_ray{ ray };
 	int bounce{ 0 };
 
+	MediumState medium{};
+
 	for (; bounce < max_bounces; ++bounce)
 	{
 		RayHitRecord hit{};
-		if (!SceneClosestHitTest(current_ray, hit))
+		if (!SceneClosestHitTest(current_ray, hit, false, medium.inside))
 		{
 			accumulated_color += throughput * EnvironmentRadiance(scene, current_ray.direction);
 			break;
@@ -589,48 +613,104 @@ ColorRgba SoftwarePathTracer::TracePath(const Ray& ray, const Scene* scene, uint
 
 		const SceneObject& obj{ scene->objects.at(hit.object_index) };
 		const Material* material{ scene->materials_factory.Get(obj.material_index) };
-		const SurfaceProperties surface{ material->GetSurfaceProperties(shading_input, scene->textures_factory) };
+		SurfaceProperties surface{ material->GetSurfaceProperties(shading_input, scene->textures_factory) };
+
+		if (IsAlphaSkipped(surface, hash_state))
+		{
+			current_ray.origin += current_ray.direction * (hit.t + 0.001f);
+			--bounce;
+			continue;
+		}
 
 		shading_input.world_normal = surface.shading_normal;
 
-		accumulated_color += throughput * DirectIllumination(shading_input, surface, material, scene);
+		surface.roughness = std::max(surface.roughness, 0.01f);
+
+		if (medium.inside && medium.attenuation_distance < std::numeric_limits<float>::max())
+		{
+			const float exponent{ hit.t / medium.attenuation_distance };
+			throughput *= ColorRgba(
+				std::pow(medium.attenuation_color.r, exponent),
+				std::pow(medium.attenuation_color.g, exponent),
+				std::pow(medium.attenuation_color.b, exponent));
+		}
+
+		if (surface.transmission <= 0.f)
+		{
+			accumulated_color += throughput * DirectIllumination(shading_input, surface, material, scene, hash_state);
+		}
 
 		if (context_->debug_params.visualization_mode == VisualizationMode::kDirectOnly)
 		{
 			break;
 		}
 
-		HemisphereSample sample{};
-		if (context_->debug_params.sampling_strategy == SamplingStrategy::kUniform)
+		if (bounce >= 3)
 		{
-			sample = SampleUniformHemisphere(shading_input.world_normal, hash_state);
+			const float survival_probability{ std::clamp(throughput.Luminance(), 0.05f, 0.95f) };
+			if (NextFloat(hash_state) > survival_probability)
+			{
+				break;
+			}
+			throughput *= (1.f / survival_probability);
+		}
+
+		BounceSample bounce_sample{};
+		if (surface.transmission > 0.f)
+		{
+			bounce_sample = SampleReflectOrRefract(shading_input, surface, medium, hash_state);
 		}
 		else
 		{
-			sample = SampleCosineHemisphere(shading_input.world_normal, hash_state);
+			HemisphereSample sample{};
+			if (context_->debug_params.sampling_strategy == SamplingStrategy::kGGX)
+			{
+				sample = SampleSpecularOrDiffuse(shading_input, surface, hash_state);
+			}
+			else if (context_->debug_params.sampling_strategy == SamplingStrategy::kUniform)
+			{
+				sample = SampleUniformHemisphere(shading_input.world_normal, hash_state);
+			}
+			else
+			{
+				sample = SampleCosineHemisphere(shading_input.world_normal, hash_state);
+			}
+
+			const float n_dot_l{ Vector3::Dot(shading_input.world_normal, sample.direction) };
+			if (n_dot_l <= 0.f || sample.pdf < 1e-6f)
+			{
+				break;
+			}
+
+			shading_input.light_direction = sample.direction;
+			shading_input.is_indirect = true;
+
+			bounce_sample.direction = sample.direction;
+			bounce_sample.weight = material->Shade(shading_input, surface) * n_dot_l / sample.pdf;
 		}
-
-		const float n_dot_l{ Vector3::Dot(shading_input.world_normal, sample.direction) };
-		if (n_dot_l <= 0.f || sample.pdf < 1e-6f)
-		{
-			break;
-		}
-
-		shading_input.light_direction = sample.direction;
-
-		BounceSample bounce_sample{};
-		bounce_sample.direction = sample.direction;
-		bounce_sample.weight = material->Shade(shading_input, surface) * n_dot_l / sample.pdf;
 
 		throughput *= bounce_sample.weight;
 
+		const bool same_side_as_normal{ Vector3::Dot(bounce_sample.direction, shading_input.world_normal) > 0.f };
 		current_ray = {
-			.origin = shading_input.shadow_origin,
+			.origin = same_side_as_normal
+				? shading_input.shadow_origin
+				: shading_input.world_position - shading_input.world_normal * 0.001f,
 			.direction = bounce_sample.direction,
 			.min = 0.001f,
 			.max = std::numeric_limits<float>::max()
 		};
 		
+	}
+
+	if (context_->debug_params.visualization_mode == VisualizationMode::kBounceCount)
+	{
+		constexpr float kHeatmapScale = 5.f;
+		const float t = std::clamp(static_cast<float>(bounce) / kHeatmapScale, 0.f, 1.f);
+		const float r = std::clamp(2.f * t - 1.f, 0.f, 1.f);
+		const float g = t < 0.5f ? 2.f * t : 2.f * (1.f - t);
+		const float b = std::clamp(1.f - 2.f * t, 0.f, 1.f);
+		return ColorRgba(r, g, b, 1.f);
 	}
 
 	return accumulated_color;
@@ -663,6 +743,109 @@ ColorRgba SoftwarePathTracer::EnvironmentRadiance(const Scene* scene, const Vect
 	return env.texture.SampleDirection(dir) * env.intensity;
 }
 
+bool SoftwarePathTracer::IsThinWalled(const SurfaceProperties& surface)
+{
+	return surface.thickness <= 0.f && surface.attenuation_distance >= std::numeric_limits<float>::max();
+}
 
+SoftwarePathTracer::BounceSample SoftwarePathTracer::SampleReflectOrRefract(const ShadingInput& input, const SurfaceProperties& surface, MediumState& medium, uint32_t& hash_state)
+{
+	const Vector3 incoming{ -input.view_direction };
+	Vector3 normal{ input.world_normal };
+	if (Vector3::Dot(incoming, normal) > 0.f)
+	{
+		normal = -normal;
+	}
 
+	if (IsThinWalled(surface))
+	{
+		const float fresnel_thin{ FresnelFunction_Schlick(normal, input.view_direction, surface.f0).r };
+		if (NextFloat(hash_state) < fresnel_thin)
+		{
+			return { Vector3::Reflect(incoming, normal), ColorRgba::White() };
+		}
+		return { incoming, surface.albedo };
+	}
 
+	const float eta{ medium.inside ? surface.ior : 1.f / surface.ior };
+	const Vector3 refracted{ Vector3::Refract(incoming, normal, eta) };
+	const bool total_internal_reflection{ refracted.SqrMagnitude() < 1e-8f };
+
+	const float fresnel{ total_internal_reflection ? 1.f : FresnelFunction_Schlick(normal, medium.inside ? -refracted : input.view_direction, surface.f0).r };
+
+	if (total_internal_reflection || NextFloat(hash_state) < fresnel)
+	{
+		return { Vector3::Reflect(incoming, normal), ColorRgba::White() };
+	}
+
+	medium.inside = !medium.inside;
+	medium.attenuation_color = medium.inside ? surface.attenuation_color : ColorRgba::White();
+	medium.attenuation_distance = medium.inside ? surface.attenuation_distance : std::numeric_limits<float>::max();
+
+	return { refracted, surface.albedo };
+}
+
+bool SoftwarePathTracer::IsAlphaSkipped(const SurfaceProperties& surface, uint32_t& hash_state)
+{
+	if (surface.transmission > 0.f)
+	{
+		return false;
+	}
+
+	switch (surface.alpha_params.mode)
+	{
+	case AlphaMode::kMask:
+		return surface.albedo.a < surface.alpha_params.cutoff;
+	case AlphaMode::kBlend:
+		return NextFloat(hash_state) >= surface.albedo.a;
+	case AlphaMode::kOpaque:
+	default:
+		return false;
+	}
+}
+
+ColorRgba SoftwarePathTracer::ShadowTransmittance(const Ray& shadow_ray, const Scene* scene, uint32_t& hash_state) const
+{
+	ColorRgba transmittance{ ColorRgba::White() };
+	Ray ray{ shadow_ray };
+	RayHitRecord hit{};
+
+	while (SceneClosestHitTest(ray, hit, false))
+	{
+		ShadingInput shading_input{ ConstructShadingInput(hit) };
+		shading_input.view_direction = -ray.direction;
+
+		const SceneObject& obj{ scene->objects.at(hit.object_index) };
+		const Material* material{ scene->materials_factory.Get(obj.material_index) };
+		const SurfaceProperties surface{ material->GetSurfaceProperties(shading_input, scene->textures_factory) };
+
+		if (!IsAlphaSkipped(surface, hash_state))
+		{
+			if (surface.transmission > 0.f && IsThinWalled(surface))
+			{
+				Vector3 normal{ surface.shading_normal };
+				if (Vector3::Dot(ray.direction, normal) > 0.f)
+				{
+					normal = -normal;
+				}
+				const float fresnel{ FresnelFunction_Schlick(normal, -ray.direction, surface.f0).r };
+				transmittance *= surface.albedo * (1.f - fresnel);
+			}
+			else
+			{
+				return ColorRgba::Black();
+			}
+
+			if (transmittance.Luminance() < 0.001f)
+			{
+				return ColorRgba::Black();
+			}
+		}
+
+		const float travelled{ hit.t + 0.001f };
+		ray.origin += ray.direction * travelled;
+		ray.max -= travelled;
+	}
+
+	return transmittance;
+}

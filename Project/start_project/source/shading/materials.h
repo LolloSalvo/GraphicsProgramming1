@@ -33,6 +33,7 @@ namespace gfx
 		std::optional<Vector3> world_tangent{};
 		std::optional<Vector3> world_bitangent{};
 		std::optional<Vector2> texture_coordinates{};
+		bool is_indirect{ false };
 	};
 
 	//--- Alpha Coverage ---
@@ -261,6 +262,13 @@ namespace gfx
 		{
 			SurfaceProperties surface{};
 
+			surface.transmission = params_.transmission_factor;
+			surface.ior = params_.ior;
+			surface.attenuation_color = params_.attenuation_color;
+			surface.attenuation_distance = params_.attenuation_distance;
+			surface.thickness = params_.thickness_factor;
+			surface.alpha_params = params_.alpha_params;
+
 			surface.albedo = params_.albedo_color_factor;
 
 			surface.roughness = params_.roughness_factor;
@@ -316,7 +324,7 @@ namespace gfx
 
 			const ColorRgba F{ FresnelFunction_Schlick(h, v, surface.f0) };
 			const float D{ NormalDistribution_GGX(n, h, surface.roughness) };
-			const float G{ GeometryFunction_Smith(n, v, l, surface.roughness) };
+			const float G{ GeometryFunction_Smith(n, v, l, surface.roughness, input.is_indirect) };
 
 			float denominator{ 4.f * std::max(0.f, Vector3::Dot(n, v)) * std::max(0.f, Vector3::Dot(n, l)) };
 			denominator = std::max(denominator, 0.001f);
