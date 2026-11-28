@@ -111,6 +111,11 @@ namespace gfx
 			context.debug_params.print_timer = !context.debug_params.print_timer;
 			context.logger->LogInfo("Printing Timer: {}", context.debug_params.print_timer);
 		}});
+		bindings.push_back({ SDL_SCANCODE_B, "B: Toggle Bounding Boxes", [&context]()
+		{
+			context.debug_params.show_bounding_boxes = !context.debug_params.show_bounding_boxes;
+			context.logger->LogInfo("Bounding Boxes: {}", context.debug_params.show_bounding_boxes ? "On" : "Off");
+		} });
 		bindings.push_back({ SDL_SCANCODE_P, "", [&context]()
 		{
 			Scene* active_scene = context.scene_manager ? context.scene_manager->GetActiveScene() : nullptr;

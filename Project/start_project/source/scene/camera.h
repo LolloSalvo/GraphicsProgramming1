@@ -90,30 +90,24 @@ namespace gfx
 		const Matrix& GetView() const { return view_; }
 		const Matrix& GetProjection(const float fov_y, const float aspect_ratio)
 		{
-			//TODO: create projection matrix
-			(void)fov_y; (void)aspect_ratio;
-			(void)near_plane_; (void)far_plane_;
+			projection_ = Matrix::CreatePerspectiveFovLH(fov_y, aspect_ratio, near_plane_, far_plane_);
 			return projection_;
 		}
 
 	private:
 		void UpdateView()
 		{
-			// 1. Estrai i Vector3 dai Vector4 per eseguire la matematica
 			Vector3 f3{ forward_.x, forward_.y, forward_.z };
 			f3 = f3.Normalized();
 
-			// 2. Ri-ortogonalizza la base (ONB)
 			Vector3 world_up{ 0.f, 1.f, 0.f };
 			Vector3 r3 = Vector3::Cross(world_up, f3).Normalized();
 			Vector3 u3 = Vector3::Cross(f3, r3).Normalized();
 
-			// 3. Aggiorna i Vector4 della classe (w = 0.f per i vettori di direzione)
 			forward_ = Vector4{ f3.x, f3.y, f3.z, 0.f };
 			right_ = Vector4{ r3.x, r3.y, r3.z, 0.f };
 			up_ = Vector4{ u3.x, u3.y, u3.z, 0.f };
 
-			// 4. Calcola la View Matrix con CreateLookAtLH
 			Vector3 p3{ position_.x, position_.y, position_.z };
 			view_ = Matrix::CreateLookAtLH(p3, f3, u3);
 		}

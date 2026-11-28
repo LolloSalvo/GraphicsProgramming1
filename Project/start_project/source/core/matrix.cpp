@@ -370,12 +370,13 @@ Matrix Matrix::CreateLookAtLH(const Vector3& origin, const Vector3& forward, con
 
 Matrix Matrix::CreatePerspectiveFovLH(const float fov_y, const float aspect, const float zn, const float zf)
 {
-	//TODO
-	assert(false && "Not Implemented");
-	(void)fov_y; (void)aspect; (void)zn; (void)zf;
-	return {};
+	return Matrix{
+		{ 1.f / (aspect * fov_y), 0.f, 0.f, 0.f },
+		{ 0.f, 1.f / fov_y, 0.f, 0.f },
+		{ 0.f, 0.f, zn / (zn - zf), 1.f },
+		{ 0.f, 0.f, -(zf * zn) / (zn - zf), 0.f }
+	};
 }
-
 
 Vector3 Matrix::GetAxisX() const
 {

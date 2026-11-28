@@ -4,8 +4,8 @@
 //  Copyright (c) 2026 Matthieu Delaere. All rights reserved.
 //==============================================================
 //--- Renderer Selection ---
-#define SOFTWARE_PATH_TRACER
-//#define SOFTWARE_RASTERIZER
+//#define SOFTWARE_PATH_TRACER
+#define SOFTWARE_RASTERIZER
 //#define HARDWARE_RASTERIZER
 
 //--- Defines ---
@@ -248,6 +248,9 @@ int main(int, char**)
 		context.scene_manager->CreateScene<DragonAttenuationScene>();
 		context.scene_manager->CreateScene<DamagedHelmetScene>();
 	#elif defined(SOFTWARE_RASTERIZER)
+		context.scene_manager->CreateScene<NdcTriangleScene>();
+		context.scene_manager->CreateScene<WorldTriangleScene>();
+		context.scene_manager->CreateScene<ColorTriangleScene>();
 	#elif defined(HARDWARE_RASTERIZER)
 	#endif
 
